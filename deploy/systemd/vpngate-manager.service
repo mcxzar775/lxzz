@@ -1,0 +1,31 @@
+[Unit]
+Description=VPNGate Multi-Exit Manager API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vpngate-manager
+Group=vpngate-manager
+WorkingDirectory=/opt/vpngate-manager/backend
+EnvironmentFile=/etc/vpngate-manager/vpngate.env
+RuntimeDirectory=vpngate-manager
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+ExecStart=/opt/vpngate-manager/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=3
+# Restricted sudo is required only for the fixed, root-owned network helper.
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/vpngate-manager /var/log/vpngate-manager /etc/netns
+
+[Install]
+WantedBy=multi-user.target
