@@ -2,9 +2,10 @@
 
 set -Eeuo pipefail
 
-readonly DEFAULT_VERSION="0.1.4"
+readonly DEFAULT_VERSION="0.2.0"
 GITHUB_REPOSITORY="${VPNGATE_GITHUB_REPOSITORY:-}"
 INSTALL_VERSION="${VPNGATE_INSTALL_VERSION:-$DEFAULT_VERSION}"
+BOOTSTRAP_ACTION="install"
 BOOTSTRAP_DIRECTORY=""
 
 log() {
@@ -17,7 +18,7 @@ fail() {
 }
 
 usage() {
-    printf 'Usage: sudo bash install-from-github.sh --repo OWNER/REPOSITORY [--version VERSION]\n'
+    printf 'Usage: sudo bash install-from-github.sh --repo OWNER/REPOSITORY [--version VERSION] [--upgrade]\n'
 }
 
 cleanup() {
@@ -68,6 +69,10 @@ parse_arguments() {
                 INSTALL_VERSION="$2"
                 shift 2
                 ;;
+            --upgrade)
+                BOOTSTRAP_ACTION="upgrade"
+                shift
+                ;;
             --help|-h)
                 usage
                 exit 0
@@ -104,7 +109,9 @@ download() {
 main() {
     parse_arguments "$@"
     validate_inputs
-    prepare_bootstrap_credentials
+    if [[ "$BOOTSTRAP_ACTION" == "install" ]]; then
+        prepare_bootstrap_credentials
+    fi
     trap cleanup EXIT
 
     local archive_name="vpngate-manager-${INSTALL_VERSION}.tar.gz"
@@ -126,11 +133,11 @@ main() {
     tar -xzf "$archive" -C "$extract_directory"
 
     local project_directory="${extract_directory}/vpngate-manager-${INSTALL_VERSION}"
-    [[ -f "${project_directory}/scripts/install.sh" \
-        && ! -L "${project_directory}/scripts/install.sh" ]] \
-        || fail "verified release does not contain the installer"
-    log "starting verified installer"
-    bash "${project_directory}/scripts/install.sh"
+    local action_script="${project_directory}/scripts/${BOOTSTRAP_ACTION}.sh"
+    [[ -f "$action_script" && ! -L "$action_script" ]] \
+        || fail "verified release does not contain the requested action"
+    log "starting verified ${BOOTSTRAP_ACTION}"
+    bash "$action_script"
 }
 
 main "$@"

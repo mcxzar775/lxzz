@@ -2,6 +2,7 @@ from app.models.auth import AuditLog, LoginAttempt, User, UserSession
 from app.models.network import (
     BlockedNode,
     ConnectionEvent,
+    FavoriteNode,
     NodeScanResult,
     ScheduledTask,
     ServiceCheck,
@@ -15,6 +16,7 @@ __all__ = [
     "AuditLog",
     "BlockedNode",
     "ConnectionEvent",
+    "FavoriteNode",
     "LoginAttempt",
     "NodeScanResult",
     "ScheduledTask",
@@ -26,4 +28,3 @@ __all__ = [
     "VPNConnection",
     "VPNGateNode",
 ]
-

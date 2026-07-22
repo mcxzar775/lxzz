@@ -8,10 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import utcnow
-from app.models.enums import ConnectionStatus, NetworkType
+from app.models.enums import ConnectionStatus, NetworkType, RoutingMode
 from app.models.network import (
     BlockedNode,
     ConnectionEvent,
+    FavoriteNode,
     SocksEndpoint,
     VPNConnection,
     VPNGateNode,
@@ -70,6 +71,7 @@ def _node(
     score: int = 1000,
     available: bool = True,
     network_type: NetworkType = NetworkType.PUBLIC_VPN,
+    country_code: str = "US",
 ) -> VPNGateNode:
     return VPNGateNode(
         id=identifier,
@@ -80,7 +82,7 @@ def _node(
         ping_ms=ping_ms,
         speed_bps=speed_bps,
         country_long="United States",
-        country_code="US",
+        country_code=country_code,
         sessions=1,
         uptime_seconds=100,
         total_users=100,
@@ -106,6 +108,46 @@ def _connection(node_id: int, *, identifier: int = 1) -> VPNConnection:
         status=ConnectionStatus.RUNNING,
         exit_ip="8.8.8.8",
     )
+
+
+def test_candidate_selection_honors_country_favorites_and_fixed_node_modes(
+    app: FastAPI,
+) -> None:
+    factory: sessionmaker[Session] = app.state.session_factory
+    with factory() as db:
+        current = _node(1, "8.8.8.8", country_code="US")
+        fastest_jp = _node(2, "1.1.1.1", ping_ms=5, country_code="JP")
+        favorite_jp = _node(3, "9.9.9.9", ping_ms=20, country_code="JP")
+        db.add_all([current, fastest_jp, favorite_jp])
+        db.flush()
+        db.add(FavoriteNode(node_id=favorite_jp.id))
+
+        country_connection = _connection(current.id, identifier=1)
+        country_connection.routing_mode = RoutingMode.FIXED_COUNTRY
+        country_connection.preferred_country_code = "JP"
+        db.add(country_connection)
+        db.flush()
+        assert select_candidate_node(
+            db, country_connection, HealthPolicy()
+        ).id == fastest_jp.id
+
+        favorite_connection = _connection(current.id, identifier=2)
+        favorite_connection.routing_mode = RoutingMode.FAVORITES
+        db.add(favorite_connection)
+        db.flush()
+        assert select_candidate_node(
+            db, favorite_connection, HealthPolicy()
+        ).id == favorite_jp.id
+
+        fixed_connection = _connection(current.id, identifier=3)
+        fixed_connection.routing_mode = RoutingMode.FIXED_NODE
+        db.add(fixed_connection)
+        db.flush()
+        with pytest.raises(
+            AutoSwitchOperationError,
+            match="fixed_node_auto_switch_disabled",
+        ):
+            select_candidate_node(db, fixed_connection, HealthPolicy())
 
 
 def test_candidate_selection_excludes_current_blocked_and_policy_mismatch(

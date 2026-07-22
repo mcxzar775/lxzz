@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.enums import ConnectionStatus, NetworkType
+from app.models.enums import ConnectionStatus, NetworkType, RoutingMode
 from app.services.auto_switch import (
     HealthPolicy,
     SwitchMode,
@@ -21,6 +21,8 @@ class ConnectionRead(BaseModel):
     node_ip: str | None = None
     node_country_code: str | None = None
     node_speed_bps: int | None = None
+    routing_mode: RoutingMode
+    preferred_country_code: str | None
     namespace: str
     tun_device: str
     status: ConnectionStatus
@@ -54,6 +56,13 @@ class ConnectionCreate(BaseModel):
         pattern=r"^[A-Za-z0-9][A-Za-z0-9_. -]{2,95}$",
     )
     node_id: int = Field(ge=1)
+    routing_mode: RoutingMode = RoutingMode.AUTO
+    preferred_country_code: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Za-z]{2}$",
+    )
     create_socks: bool = True
     socks_username: str | None = Field(
         default=None,
@@ -65,6 +74,38 @@ class ConnectionCreate(BaseModel):
     client_ip_allowlist: list[str] = Field(default_factory=list, max_length=64)
     max_connections: int = Field(default=100, ge=1, le=1000)
     timeout_seconds: int = Field(default=300, ge=10, le=3600)
+
+    @model_validator(mode="after")
+    def routing_policy_is_consistent(self) -> "ConnectionCreate":
+        if self.preferred_country_code is not None:
+            self.preferred_country_code = self.preferred_country_code.upper()
+        if self.routing_mode is RoutingMode.FIXED_COUNTRY:
+            if self.preferred_country_code is None:
+                raise ValueError("fixed country routing requires a country code")
+        elif self.preferred_country_code is not None:
+            raise ValueError("country code is only valid for fixed country routing")
+        return self
+
+
+class ConnectionRoutingUpdate(BaseModel):
+    routing_mode: RoutingMode
+    preferred_country_code: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Za-z]{2}$",
+    )
+
+    @model_validator(mode="after")
+    def routing_policy_is_consistent(self) -> "ConnectionRoutingUpdate":
+        if self.preferred_country_code is not None:
+            self.preferred_country_code = self.preferred_country_code.upper()
+        if self.routing_mode is RoutingMode.FIXED_COUNTRY:
+            if self.preferred_country_code is None:
+                raise ValueError("fixed country routing requires a country code")
+        elif self.preferred_country_code is not None:
+            raise ValueError("country code is only valid for fixed country routing")
+        return self
 
 
 class ConnectionCreateResponse(BaseModel):

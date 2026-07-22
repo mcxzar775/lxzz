@@ -45,6 +45,27 @@ function safeDetails(details: Record<string, unknown>): string {
   return entries.length ? JSON.stringify(Object.fromEntries(entries)) : '—'
 }
 
+function exportLogs(): void {
+  if (!logs.value.length) {
+    ElMessage.warning('当前页面没有可导出的日志')
+    return
+  }
+  const payload = {
+    exported_at: new Date().toISOString(),
+    source: source.value || 'all',
+    page: page.value,
+    items: logs.value,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `vpngate-logs-${new Date().toISOString().slice(0, 10)}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success(`已导出当前页面 ${logs.value.length} 条脱敏日志`)
+}
+
 async function loadLogs(resetPage = false): Promise<void> {
   if (resetPage) page.value = 1
   const params = new URLSearchParams({
@@ -95,6 +116,7 @@ onMounted(() => loadLogs())
               <el-option label="连接" value="connection" />
               <el-option label="检测" value="scan" />
             </el-select>
+            <el-button :disabled="!logs.length" @click="exportLogs">导出当前页</el-button>
             <el-button @click="loadLogs()">刷新</el-button>
           </div>
         </section>

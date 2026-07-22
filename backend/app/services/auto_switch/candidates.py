@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.enums import NetworkType
-from app.models.network import BlockedNode, VPNConnection, VPNGateNode
+from app.models.enums import NetworkType, RoutingMode
+from app.models.network import BlockedNode, FavoriteNode, VPNConnection, VPNGateNode
 from app.services.auto_switch.types import AutoSwitchOperationError, HealthPolicy
 
 
@@ -30,11 +30,20 @@ def select_candidate_node(
     *,
     requested_node_id: int | None = None,
 ) -> VPNGateNode:
+    routing_mode = (
+        connection.routing_mode
+        if isinstance(connection.routing_mode, RoutingMode)
+        else RoutingMode(connection.routing_mode)
+    )
+    if requested_node_id is None and routing_mode is RoutingMode.FIXED_NODE:
+        raise AutoSwitchOperationError("fixed_node_auto_switch_disabled")
+
     blocked = db.execute(
         select(BlockedNode.node_id, BlockedNode.config_hash)
     ).all()
     blocked_ids = {node_id for node_id, _ in blocked if node_id is not None}
     blocked_hashes = {config_hash for _, config_hash in blocked}
+    favorite_ids = set(db.scalars(select(FavoriteNode.node_id)).all())
 
     if requested_node_id is not None:
         candidate = db.get(VPNGateNode, requested_node_id)
@@ -56,6 +65,15 @@ def select_candidate_node(
         and node.config_hash not in blocked_hashes
         and bool(node.sanitized_config)
         and _satisfies_cached_policy(node, policy)
+        and (
+            routing_mode is not RoutingMode.FIXED_COUNTRY
+            or node.country_code == connection.preferred_country_code
+        )
+        and (
+            routing_mode is not RoutingMode.FAVORITES
+            or node.id in favorite_ids
+        )
+        and routing_mode is not RoutingMode.FIXED_NODE
     ]
     if not eligible:
         raise AutoSwitchOperationError("no_eligible_candidate")

@@ -27,6 +27,24 @@ class AdminLogList(BaseModel):
     offset: int
 
 
+class DiagnosticCheckRead(BaseModel):
+    key: str
+    label: str
+    status: Literal["PASS", "WARN", "FAIL", "SKIP"]
+    detail: str
+
+
+class RuntimeDiagnosticsRead(BaseModel):
+    version: str
+    environment: str
+    runtime_mode: Literal["simulated", "real"]
+    network_executor: str
+    real_feature_gates: dict[str, bool]
+    overall_status: Literal["PASS", "WARN", "FAIL"]
+    checks: list[DiagnosticCheckRead]
+    generated_at: datetime
+
+
 class AdminSettingsRead(BaseModel):
     node_refresh_minutes: int
     scan_concurrency: int

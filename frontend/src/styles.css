@@ -167,11 +167,18 @@ button, input { font: inherit; }
 .sensitive-value { padding: .7rem; border: 1px solid rgba(245, 184, 75, .3); border-radius: .45rem; color: #ffe0a2; background: rgba(245, 184, 75, .07); }
 .table-time { color: #8296ab; font-size: .68rem; }
 .detail-preview { display: block; max-width: 28rem; overflow: hidden; color: #71869c; font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
+.batch-progress-panel { display: grid; grid-template-columns: minmax(15rem, .7fr) minmax(20rem, 1.3fr); gap: 2rem; align-items: center; }
 .administration-panel { padding-top: .5rem; }
 .tab-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .tab-toolbar p { margin: 0; color: var(--muted); font-size: .74rem; }
 .inline-note { display: inline-block; margin-left: .65rem; color: var(--muted); font-size: .65rem; }
 .settings-form, .dialog-form { margin-top: 1.4rem; }
+.diagnostics-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
+.diagnostics-summary > div { padding: 1rem; border: 1px solid var(--line); border-radius: .55rem; background: rgba(6, 20, 33, .55); }
+.diagnostics-summary span, .diagnostics-summary strong { display: block; }
+.diagnostics-summary span { color: var(--muted); font-size: .66rem; }
+.diagnostics-summary strong { margin-top: .5rem; font-size: .9rem; }
+.feature-gates { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .settings-form .el-input-number, .dialog-form .el-select, .dialog-form .el-input, .settings-form > .el-form-item .el-input { width: 100%; }
 .el-dialog, .el-drawer { --el-bg-color: #0b1a2a; --el-text-color-primary: var(--ink); --el-text-color-regular: #bdc9d7; --el-border-color: var(--line); background: #0b1a2a; }
 .el-dialog__title, .el-drawer__title { color: var(--ink); }
@@ -185,6 +192,7 @@ button, input { font: inherit; }
   .node-filters { min-width: 0; width: 100%; }
   .expanded-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .management-toolbar { align-items: stretch; flex-direction: column; }
+  .batch-progress-panel { grid-template-columns: 1fr; gap: 1rem; }
   .toolbar-actions { justify-content: flex-start; }
   .unlock-form { grid-template-columns: 1fr; }
   .unlock-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -202,6 +210,7 @@ button, input { font: inherit; }
   .sidebar-safety { margin-left: auto; margin-top: -2.8rem; width: max-content; }
   .topbar { min-height: 6rem; }
   .settings-grid { grid-template-columns: 1fr; }
+  .diagnostics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 580px) {
   .boundary-map, .form-options > span, .sidebar-safety { display: none; }
@@ -212,5 +221,6 @@ button, input { font: inherit; }
   .node-filters { grid-template-columns: 1fr; }
   .expanded-filters, .dialog-grid { grid-template-columns: 1fr; }
   .tab-toolbar { align-items: stretch; flex-direction: column; }
+  .diagnostics-summary { grid-template-columns: 1fr 1fr; }
   .unlock-summary-grid { grid-template-columns: 1fr 1fr; }
 }

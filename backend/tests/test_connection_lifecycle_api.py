@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models.auth import AuditLog
 from app.models.enums import NetworkType
-from app.models.network import BlockedNode, VPNGateNode
+from app.models.network import BlockedNode, FavoriteNode, VPNGateNode
 from app.services.network import MockNetworkExecutor
 from conftest import UserCredentials, login
 from vpngate_helpers import make_openvpn_config
@@ -153,6 +153,59 @@ def test_connection_create_rejects_unavailable_or_blocked_node(
 
     assert unavailable_response.status_code == 409
     assert blocked_response.status_code == 409
+
+
+def test_connection_create_and_update_routing_policy(
+    app: FastAPI,
+    client: TestClient,
+    test_users: UserCredentials,
+) -> None:
+    factory: sessionmaker[Session] = app.state.session_factory
+    with factory() as db:
+        node = _node(1, "8.8.8.8")
+        db.add(node)
+        db.flush()
+        db.add(FavoriteNode(node_id=node.id))
+        db.commit()
+    csrf = login(client, test_users.admin_username, test_users.admin_password)
+
+    created = client.post(
+        "/api/v1/connections",
+        headers={"X-CSRF-Token": csrf},
+        json={
+            "name": "favorite-exit",
+            "node_id": 1,
+            "routing_mode": "FAVORITES",
+            "create_socks": False,
+        },
+    )
+
+    assert created.status_code == 201, created.text
+    connection = created.json()["connection"]
+    assert connection["routing_mode"] == "FAVORITES"
+    assert connection["preferred_country_code"] is None
+
+    updated = client.put(
+        f"/api/v1/connections/{connection['id']}/routing",
+        headers={"X-CSRF-Token": csrf},
+        json={
+            "routing_mode": "FIXED_COUNTRY",
+            "preferred_country_code": "us",
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["routing_mode"] == "FIXED_COUNTRY"
+    assert updated.json()["preferred_country_code"] == "US"
+
+    mismatched = client.put(
+        f"/api/v1/connections/{connection['id']}/routing",
+        headers={"X-CSRF-Token": csrf},
+        json={
+            "routing_mode": "FIXED_COUNTRY",
+            "preferred_country_code": "JP",
+        },
+    )
+    assert mismatched.status_code == 409
 
 
 def test_connection_mutations_require_manage_permission_and_csrf(

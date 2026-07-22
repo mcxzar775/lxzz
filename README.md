@@ -16,7 +16,7 @@ VPNGate 多出口管理系统。当前版本具备可迁移数据库、网页登
 
 后台健康监控默认由 `VPNGATE_ENABLE_AUTO_SWITCH=false` 关闭；即使开启，默认连接驱动仍是模拟实现，不会调用网络执行器。真实自动切换必须精确设置 `VPNGATE_ENABLE_REAL_AUTO_SWITCH=true`，并同时开启真实网络、防火墙、OpenVPN、SOCKS5、full 探测和解锁探测。延迟、最低速度、允许网络类型和必须通过的服务可通过对应 `VPNGATE_AUTO_SWITCH_*` 设置约束。
 
-管理台包含运行仪表盘、节点筛选/刷新/批量扫描/黑名单、连接创建/启停/重启/切换/健康检查/凭据轮换、解锁检测、统一脱敏日志以及用户和非敏感设置管理。创建与轮换 SOCKS5 密码时明文只在单次响应中返回，数据库仅保存密文，审计日志不保存密码。真实连接生命周期还需要显式设置 `VPNGATE_ENABLE_REAL_CONNECTIONS=true`，并同时开启真实网络、防火墙、OpenVPN、SOCKS5 与 full 扫描；否则生命周期使用确定性的模拟驱动。
+管理台包含运行仪表盘、节点筛选/刷新/收藏/批量扫描进度/黑名单、连接创建/启停/重启/切换/健康检查/凭据轮换、解锁检测、统一脱敏日志导出、只读运行诊断以及用户和非敏感设置管理。连接可选择自动、固定国家、收藏节点或固定节点路由策略；自动切换只会从策略允许的候选范围中选择。创建与轮换 SOCKS5 密码时明文只在单次响应中返回，数据库仅保存密文，审计日志不保存密码。真实连接生命周期还需要显式设置 `VPNGATE_ENABLE_REAL_CONNECTIONS=true`，并同时开启真实网络、防火墙、OpenVPN、SOCKS5 与 full 扫描；否则生命周期使用确定性的模拟驱动。
 
 应用启动采用 fail-closed 恢复：数据库中未停止的连接或仍标记活动的 SOCKS5 端点，在重新验证前全部关闭。模拟模式只更新数据库且不会调用网络执行器；真实连接模式先通过固定 `connection-purge <连接 ID>` Helper 清理项目受管的进程、规则、Namespace、DNS 与 veth，任何清理失败都会阻止服务进入可用状态。
 
@@ -77,12 +77,12 @@ make release-check
 
 ```bash
 make release
-bash scripts/verify-release.sh dist/vpngate-manager-0.1.4.tar.gz
+bash scripts/verify-release.sh dist/vpngate-manager-0.2.0.tar.gz
 ```
 
 发布命令生成带外部 SHA-256 文件和内置逐文件 `RELEASE-MANIFEST.json` 的规范化归档。`.env`、凭据密钥、SQLite 数据库、缓存、虚拟环境、`node_modules` 和工作目录不会进入发布包；校验器拒绝路径穿越、符号链接、特殊文件、重复成员、未列入清单的文件和摘要不匹配。
 
-将源码托管到 GitHub 并创建同版本 Release 后，可以使用 `scripts/install-from-github.sh` 完成校验后安装。上传步骤、Release 资产清单和版本固定的一键命令见 `docs/GITHUB.md`。
+将源码托管到 GitHub 并创建同版本 Release 后，可以使用 `scripts/install-from-github.sh` 完成校验后安装，或通过 `--upgrade` 对现有实例执行原子升级。上传步骤、Release 资产清单和版本固定的一键命令见 `docs/GITHUB.md`。
 
 ## Linux 安装与维护
 
@@ -118,12 +118,16 @@ sudo bash scripts/uninstall.sh
 - `GET /dashboard`
 - `GET /nodes`
 - `POST /nodes/refresh`
+- `POST /nodes/batch-scans`
+- `GET /nodes/batch-scans/{task_id}`
 - `POST /nodes/{id}/scan?scan_type=fast|full`
 - `POST /nodes/{id}/classify`
+- `POST/DELETE /nodes/{id}/favorite`
 - `POST /nodes/{id}/block`
 - `DELETE /nodes/{id}/block`
 - `GET /connections`
 - `POST /connections`
+- `PUT /connections/{id}/routing`
 - `POST /connections/{id}/start`
 - `POST /connections/{id}/stop`
 - `POST /connections/{id}/restart`
@@ -136,6 +140,7 @@ sudo bash scripts/uninstall.sh
 - `GET /connections/{id}/events`
 - `GET /nodes/{id}/scans`
 - `GET /logs`
+- `GET /diagnostics`
 - `GET/PUT /settings`
 - `GET/POST/PATCH/DELETE /users`
 - `POST /users/{id}/password`

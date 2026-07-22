@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from app.models.enums import NetworkType, ScanStatus
+from app.models.enums import NetworkType, ScanStatus, TaskStatus
 
 
 class NodeRead(BaseModel):
@@ -30,6 +30,7 @@ class NodeRead(BaseModel):
     failure_count: int
     is_available: bool
     is_blocked: bool = False
+    is_favorite: bool = False
     asn: int | None
     asn_organization: str | None
     isp: str | None
@@ -90,6 +91,42 @@ class NodeScanList(BaseModel):
     offset: int
 
 
+class BatchScanRequest(BaseModel):
+    node_ids: list[int] = Field(min_length=1, max_length=50)
+    scan_type: Literal["fast", "full"] = "fast"
+
+    @field_validator("node_ids")
+    @classmethod
+    def _validate_node_ids(cls, values: list[int]) -> list[int]:
+        if any(isinstance(value, bool) or value <= 0 for value in values):
+            raise ValueError("node IDs must be positive integers")
+        if len(set(values)) != len(values):
+            raise ValueError("node IDs must be unique")
+        return values
+
+
+class BatchScanItemRead(BaseModel):
+    node_id: int
+    status: ScanStatus
+    error_code: str | None
+    simulated: bool
+
+
+class BatchScanTaskRead(BaseModel):
+    id: int
+    status: TaskStatus
+    scan_type: Literal["fast", "full"]
+    total: int
+    completed: int
+    succeeded: int
+    failed: int
+    items: list[BatchScanItemRead]
+    last_error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+
+
 class NodeBlockRequest(BaseModel):
     reason: str | None = Field(default=None, min_length=1, max_length=255)
 
@@ -98,3 +135,8 @@ class NodeBlockRead(BaseModel):
     node_id: int
     blocked: bool
     reason: str | None
+
+
+class NodeFavoriteRead(BaseModel):
+    node_id: int
+    favorite: bool

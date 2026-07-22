@@ -4,8 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 
+from app import __version__
 from app.api.dependencies import AuthContext, CsrfAuth, DbSession, require_permission
 from app.core.permissions import Permission
+from app.db.base import utcnow
 from app.models.auth import AuditLog, LoginAttempt, User
 from app.models.network import ConnectionEvent, NodeScanResult
 from app.models.settings import SystemSetting
@@ -14,10 +16,13 @@ from app.schemas.admin import (
     AdminLogRead,
     AdminSettingsRead,
     AdminSettingsUpdate,
+    DiagnosticCheckRead,
     LogSource,
+    RuntimeDiagnosticsRead,
 )
 from app.services.admin_settings import ADMIN_SETTINGS_KEY
 from app.services.audit import record_audit
+from app.services.diagnostics import build_runtime_checks
 
 
 router = APIRouter(tags=["administration"])
@@ -33,6 +38,57 @@ def _client_ip(request: Request) -> str:
 
 def _count(db: DbSession, model: type) -> int:
     return int(db.scalar(select(func.count()).select_from(model)) or 0)
+
+
+@router.get("/diagnostics", response_model=RuntimeDiagnosticsRead)
+def runtime_diagnostics(
+    request: Request,
+    _: SettingsAuth,
+    db: DbSession,
+) -> RuntimeDiagnosticsRead:
+    settings = request.app.state.settings
+    checks = build_runtime_checks(settings)
+    try:
+        database_ok = db.scalar(select(1)) == 1
+    except Exception:  # pragma: no cover - exercised by integration diagnostics
+        database_ok = False
+    checks.insert(
+        0,
+        DiagnosticCheckRead(
+            key="database",
+            label="Database",
+            status="PASS" if database_ok else "FAIL",
+            detail="reachable" if database_ok else "unreachable",
+        ),
+    )
+    if any(check.status == "FAIL" for check in checks):
+        overall_status = "FAIL"
+    elif any(check.status == "WARN" for check in checks):
+        overall_status = "WARN"
+    else:
+        overall_status = "PASS"
+    gates = {
+        "network": settings.enable_real_network,
+        "openvpn": settings.enable_real_openvpn,
+        "socks5": settings.enable_real_socks5,
+        "firewall": settings.enable_real_firewall,
+        "scans": settings.enable_real_scans,
+        "full_scans": settings.enable_real_full_scans,
+        "ip_intelligence": settings.enable_real_ip_intelligence,
+        "unlock_checks": settings.enable_real_unlock_checks,
+        "connections": settings.enable_real_connections,
+        "auto_switch": settings.enable_real_auto_switch,
+    }
+    return RuntimeDiagnosticsRead(
+        version=__version__,
+        environment=settings.environment,
+        runtime_mode="real" if settings.enable_real_network else "simulated",
+        network_executor=type(request.app.state.network_executor).__name__,
+        real_feature_gates=gates,
+        overall_status=overall_status,
+        checks=checks,
+        generated_at=utcnow(),
+    )
 
 
 @router.get("/logs", response_model=AdminLogList)

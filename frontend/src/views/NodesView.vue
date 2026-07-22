@@ -7,8 +7,10 @@ import { apiRequest } from '../api/http'
 import AppSidebar from '../components/AppSidebar.vue'
 import { useAuthStore } from '../stores/auth'
 import type {
+  BatchScanTask,
   NetworkType,
   NodeBlockResponse,
+  NodeFavoriteResponse,
   NodeListResponse,
   NodeRefreshResponse,
   NodeScanResponse,
@@ -23,6 +25,7 @@ const refreshing = ref(false)
 const classifyingId = ref<number | null>(null)
 const actionId = ref<number | null>(null)
 const batchScanning = ref(false)
+const batchProgress = ref<BatchScanTask | null>(null)
 const nodes = ref<VPNGateNode[]>([])
 const selection = ref<VPNGateNode[]>([])
 const total = ref(0)
@@ -32,6 +35,7 @@ const search = ref('')
 const country = ref('')
 const protocol = ref<'' | 'udp' | 'tcp'>('')
 const availability = ref<'' | 'true' | 'false'>('')
+const favoriteFilter = ref<'' | 'true' | 'false'>('')
 const networkType = ref<NetworkType | ''>('')
 
 const roleLabels: Record<UserRole, string> = {
@@ -109,6 +113,7 @@ async function loadNodes(resetPage = false): Promise<void> {
   if (/^[a-zA-Z]{2}$/.test(country.value.trim())) params.set('country_code', country.value.trim().toUpperCase())
   if (protocol.value) params.set('protocol', protocol.value)
   if (availability.value) params.set('available', availability.value)
+  if (favoriteFilter.value) params.set('favorite', favoriteFilter.value)
   if (networkType.value) params.set('network_type', networkType.value)
   loading.value = true
   try {
@@ -156,10 +161,25 @@ async function batchScan(scanType: 'fast' | 'full'): Promise<void> {
   if (selection.value.length === 0) return
   batchScanning.value = true
   try {
-    const results = await Promise.all(selection.value.map((node) => scanOne(node, scanType)))
-    const succeeded = results.filter((result) => result?.status === 'SUCCEEDED').length
-    ElMessage.info(`批量检测完成：${succeeded}/${results.length} 成功`)
+    batchProgress.value = await apiRequest<BatchScanTask>('/api/v1/nodes/batch-scans', {
+      method: 'POST',
+      body: JSON.stringify({
+        node_ids: selection.value.map((node) => node.id),
+        scan_type: scanType,
+      }),
+    })
+    while (batchProgress.value.status === 'PENDING' || batchProgress.value.status === 'RUNNING') {
+      await new Promise((resolve) => window.setTimeout(resolve, 500))
+      batchProgress.value = await apiRequest<BatchScanTask>(`/api/v1/nodes/batch-scans/${batchProgress.value.id}`)
+    }
+    if (batchProgress.value.status === 'SUCCEEDED') {
+      ElMessage.success(`批量检测完成：${batchProgress.value.succeeded}/${batchProgress.value.total} 成功`)
+    } else {
+      ElMessage.warning(`批量检测中止：${batchProgress.value.last_error ?? batchProgress.value.status}`)
+    }
     await loadNodes()
+  } catch {
+    ElMessage.error('批量检测任务创建或查询失败')
   } finally {
     batchScanning.value = false
   }
@@ -169,12 +189,26 @@ async function classify(node: VPNGateNode): Promise<void> {
   classifyingId.value = node.id
   try {
     const updated = await apiRequest<VPNGateNode>(`/api/v1/nodes/${node.id}/classify`, { method: 'POST' })
-    nodes.value = nodes.value.map((item) => (item.id === updated.id ? { ...updated, is_blocked: item.is_blocked } : item))
+    nodes.value = nodes.value.map((item) => (item.id === updated.id ? { ...updated, is_blocked: item.is_blocked, is_favorite: item.is_favorite } : item))
     ElMessage.success('出口 IP 分类已更新')
   } catch {
     ElMessage.warning('需要先完成一次成功的真实 full 检测')
   } finally {
     classifyingId.value = null
+  }
+}
+
+async function toggleFavorite(node: VPNGateNode): Promise<void> {
+  try {
+    const result = await apiRequest<NodeFavoriteResponse>(`/api/v1/nodes/${node.id}/favorite`, {
+      method: node.is_favorite ? 'DELETE' : 'POST',
+    })
+    nodes.value = nodes.value.map((item) => (
+      item.id === node.id ? { ...item, is_favorite: result.favorite } : item
+    ))
+    ElMessage.success(result.favorite ? '已收藏节点' : '已取消收藏')
+  } catch {
+    ElMessage.error('收藏状态更新失败')
   }
 }
 
@@ -231,12 +265,18 @@ onMounted(() => loadNodes())
           <div v-if="canManage" class="toolbar-actions"><el-button :loading="refreshing" @click="refreshNodes">刷新节点源</el-button><el-button type="primary" :disabled="selection.length === 0" :loading="batchScanning" @click="batchScan('fast')">批量 Fast</el-button><el-button type="warning" plain :disabled="selection.length === 0" :loading="batchScanning" @click="batchScan('full')">批量 Full</el-button></div>
         </section>
 
+        <section v-if="batchProgress" class="panel batch-progress-panel">
+          <div class="cell-stack"><strong>批量 {{ batchProgress.scan_type.toUpperCase() }} 检测 · {{ batchProgress.completed }}/{{ batchProgress.total }}</strong><span>成功 {{ batchProgress.succeeded }} · 失败 {{ batchProgress.failed }} · {{ batchProgress.status }}</span></div>
+          <el-progress :percentage="batchProgress.total ? Math.round(batchProgress.completed * 100 / batchProgress.total) : 0" :status="batchProgress.status === 'SUCCEEDED' ? 'success' : batchProgress.status === 'FAILED' || batchProgress.status === 'CANCELLED' ? 'exception' : undefined" />
+        </section>
+
         <section class="panel node-filter-panel">
           <div class="node-filters expanded-filters">
             <el-input v-model="search" clearable placeholder="IP、组织、ISP、PTR 或城市" @keyup.enter="loadNodes(true)" />
             <el-input v-model="country" clearable maxlength="2" placeholder="国家代码，如 US" @keyup.enter="loadNodes(true)" />
             <el-select v-model="protocol" clearable placeholder="全部协议"><el-option label="UDP" value="udp" /><el-option label="TCP" value="tcp" /></el-select>
             <el-select v-model="availability" clearable placeholder="全部可用状态"><el-option label="可用" value="true" /><el-option label="不可用" value="false" /></el-select>
+            <el-select v-model="favoriteFilter" clearable placeholder="全部收藏状态"><el-option label="仅收藏" value="true" /><el-option label="未收藏" value="false" /></el-select>
             <el-select v-model="networkType" clearable placeholder="全部网络类型"><el-option v-for="(label, value) in typeLabels" :key="value" :label="label" :value="value" /></el-select>
             <el-button type="primary" @click="loadNodes(true)">查询</el-button>
           </div>
@@ -245,14 +285,14 @@ onMounted(() => loadNodes())
         <section class="panel node-table-panel">
           <el-table v-loading="loading" :data="nodes" empty-text="暂无节点数据" @selection-change="(rows: VPNGateNode[]) => selection = rows">
             <el-table-column v-if="canManage" type="selection" width="48" />
-            <el-table-column label="VPNGate 节点" min-width="190"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong class="mono">{{ row.ip_address }}</strong><span>{{ row.country_code ?? '—' }} · {{ row.protocol.toUpperCase() }}:{{ row.remote_port }}</span></div></template></el-table-column>
+            <el-table-column label="VPNGate 节点" min-width="210"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong class="mono">{{ row.is_favorite ? '★ ' : '' }}{{ row.ip_address }}</strong><span>{{ row.country_code ?? '—' }} · {{ row.protocol.toUpperCase() }}:{{ row.remote_port }}</span></div></template></el-table-column>
             <el-table-column label="质量" min-width="125"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong>{{ row.ping_ms ?? '—' }} ms</strong><span>{{ formatSpeed(row.speed_bps) }}</span></div></template></el-table-column>
             <el-table-column label="实际出口" min-width="190"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong class="mono">{{ row.classified_exit_ip ?? '未扫描' }}</strong><span>{{ [row.exit_city, row.exit_country_name].filter(Boolean).join(' · ') || '位置未知' }}</span></div></template></el-table-column>
             <el-table-column label="ASN / ISP" min-width="230"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong>{{ row.asn ? `AS${row.asn}` : 'ASN 未知' }} · {{ row.asn_organization ?? '组织未知' }}</strong><span>{{ row.isp ?? row.ptr ?? 'ISP / PTR 未知' }}</span></div></template></el-table-column>
             <el-table-column label="网络类型" min-width="150"><template #default="{ row }: { row: VPNGateNode }"><el-tooltip :content="reasons(row)" placement="top"><div class="classification-cell"><el-tag :type="typeTag(row.network_type)" effect="dark">{{ typeLabels[row.network_type] }}</el-tag><strong>{{ confidence(row.network_confidence) }}</strong></div></el-tooltip></template></el-table-column>
             <el-table-column label="状态" min-width="145"><template #default="{ row }: { row: VPNGateNode }"><div class="cell-stack"><strong><el-tag :type="row.is_blocked ? 'danger' : row.is_available ? 'success' : 'info'">{{ row.is_blocked ? '已拉黑' : row.is_available ? '可用' : '不可用' }}</el-tag></strong><span>{{ checkedAt(row.intelligence_checked_at) }}</span></div></template></el-table-column>
             <el-table-column v-if="canManage" label="操作" width="135" fixed="right">
-              <template #default="{ row }: { row: VPNGateNode }"><el-dropdown trigger="click" @command="(command: string) => command === 'fast' ? scanOne(row, 'fast') : command === 'full' ? scanOne(row, 'full') : command === 'classify' ? classify(row) : command === 'block' ? toggleBlock(row) : createConnection(row)"><el-button :loading="actionId === row.id || classifyingId === row.id">操作</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="create" :disabled="!row.is_available || row.is_blocked">创建连接</el-dropdown-item><el-dropdown-item command="fast">Fast 检测</el-dropdown-item><el-dropdown-item command="full">Full 检测</el-dropdown-item><el-dropdown-item command="classify" :disabled="!row.classified_exit_ip">重分类</el-dropdown-item><el-dropdown-item command="block" divided>{{ row.is_blocked ? '解除拉黑' : '拉黑节点' }}</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template>
+              <template #default="{ row }: { row: VPNGateNode }"><el-dropdown trigger="click" @command="(command: string) => command === 'fast' ? scanOne(row, 'fast') : command === 'full' ? scanOne(row, 'full') : command === 'classify' ? classify(row) : command === 'favorite' ? toggleFavorite(row) : command === 'block' ? toggleBlock(row) : createConnection(row)"><el-button :loading="actionId === row.id || classifyingId === row.id">操作</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="create" :disabled="!row.is_available || row.is_blocked">创建连接</el-dropdown-item><el-dropdown-item command="favorite">{{ row.is_favorite ? '取消收藏' : '收藏节点' }}</el-dropdown-item><el-dropdown-item command="fast">Fast 检测</el-dropdown-item><el-dropdown-item command="full">Full 检测</el-dropdown-item><el-dropdown-item command="classify" :disabled="!row.classified_exit_ip">重分类</el-dropdown-item><el-dropdown-item command="block" divided>{{ row.is_blocked ? '解除拉黑' : '拉黑节点' }}</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template>
             </el-table-column>
           </el-table>
           <div class="node-pagination"><span>共 {{ total }} 个节点<span v-if="selection.length"> · 已选 {{ selection.length }}</span></span><el-pagination v-model:current-page="page" background layout="prev, pager, next" :page-size="pageSize" :total="total" @current-change="loadNodes()" /></div>

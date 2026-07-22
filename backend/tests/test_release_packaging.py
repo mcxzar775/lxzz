@@ -78,7 +78,7 @@ def test_release_archive_is_reproducible_manifested_and_secret_free(
         assert manifest_file is not None
         manifest: dict[str, Any] = json.loads(manifest_file.read())
         assert manifest["format"] == 1
-        assert manifest["version"] == "0.1.4"
+        assert manifest["version"] == "0.2.0"
         covered = {f"{prefix}/{item['path']}" for item in manifest["files"]}
         assert set(names) == covered | {f"{prefix}/RELEASE-MANIFEST.json"}
 
@@ -122,8 +122,11 @@ def test_github_bootstrap_verifies_release_before_extracting_or_installing() -> 
         'tar -xzf "$archive"'
     )
     assert installer.index('tar -xzf "$archive"') < installer.index(
-        'bash "${project_directory}/scripts/install.sh"'
+        'bash "$action_script"'
     )
+    assert '--upgrade)' in installer
+    assert 'BOOTSTRAP_ACTION="upgrade"' in installer
+    assert 'scripts/${BOOTSTRAP_ACTION}.sh' in installer
     assert "VPNGATE_ENABLE_REAL_NETWORK=true" not in installer
     assert "eval " not in installer
     assert "source " not in installer

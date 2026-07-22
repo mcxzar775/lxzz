@@ -12,8 +12,11 @@ from app.services.scanning.full import (
 )
 from app.services.scanning.types import NodeScanOutcome, NodeScanTarget, ScanType
 from app.services.scanning.service import NodeScanCoordinator, node_scan_target, scan_node
+from app.services.scanning.batch import BatchScanTaskError, BatchScanTaskService
 
 __all__ = [
+    "BatchScanTaskError",
+    "BatchScanTaskService",
     "FastScanTransport",
     "FullScanRunner",
     "ExitProbeError",

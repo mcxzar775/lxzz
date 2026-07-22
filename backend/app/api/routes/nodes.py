@@ -6,10 +6,19 @@ from sqlalchemy import func, or_, select
 from app.api.dependencies import AuthContext, CsrfAuth, DbSession, require_permission
 from app.core.permissions import Permission
 from app.models.enums import NetworkType, ScanStatus
-from app.models.network import BlockedNode, NodeScanResult, VPNGateNode
+from app.models.network import (
+    BlockedNode,
+    FavoriteNode,
+    NodeScanResult,
+    ScheduledTask,
+    VPNGateNode,
+)
 from app.schemas.nodes import (
+    BatchScanRequest,
+    BatchScanTaskRead,
     NodeBlockRead,
     NodeBlockRequest,
+    NodeFavoriteRead,
     NodeList,
     NodeRead,
     NodeRefreshResponse,
@@ -19,6 +28,7 @@ from app.schemas.nodes import (
 from app.services.audit import record_audit
 from app.services.ip_intelligence import IPIntelligenceService
 from app.services.scanning.service import NodeScanCoordinator, scan_node
+from app.services.scanning.batch import BatchScanTaskError, BatchScanTaskService
 from app.services.scanning.types import ScanType
 from app.services.vpngate.client import VPNGateFetcher
 from app.services.vpngate.importer import import_nodes
@@ -62,6 +72,14 @@ def get_node_scan_coordinator(request: Request) -> NodeScanCoordinator:
 Scanner = Annotated[NodeScanCoordinator, Depends(get_node_scan_coordinator)]
 
 
+def get_batch_scan_service(request: Request) -> BatchScanTaskService:
+    service: BatchScanTaskService = request.app.state.batch_scan_service
+    return service
+
+
+BatchScanner = Annotated[BatchScanTaskService, Depends(get_batch_scan_service)]
+
+
 def get_ip_intelligence_service(request: Request) -> IPIntelligenceService:
     service: IPIntelligenceService = request.app.state.ip_intelligence_service
     return service
@@ -76,6 +94,27 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _batch_scan_read(task: ScheduledTask) -> BatchScanTaskRead:
+    result = task.result
+    scan_type = task.payload.get("scan_type")
+    if scan_type not in {"fast", "full"}:
+        scan_type = "fast"
+    return BatchScanTaskRead(
+        id=task.id,
+        status=task.status,
+        scan_type=scan_type,
+        total=int(result.get("total", 0)),
+        completed=int(result.get("completed", 0)),
+        succeeded=int(result.get("succeeded", 0)),
+        failed=int(result.get("failed", 0)),
+        items=result.get("items", []),
+        last_error=task.last_error,
+        created_at=task.created_at,
+        started_at=task.started_at,
+        completed_at=task.completed_at,
+    )
+
+
 @router.get("", response_model=NodeList)
 def list_nodes(
     _: ReadNodesAuth,
@@ -83,6 +122,7 @@ def list_nodes(
     country_code: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
     protocol: Annotated[Literal["udp", "tcp"] | None, Query()] = None,
     available: Annotated[bool | None, Query()] = None,
+    favorite: Annotated[bool | None, Query()] = None,
     network_type: Annotated[NetworkType | None, Query()] = None,
     asn: Annotated[int | None, Query(ge=1, le=4_294_967_295)] = None,
     min_confidence: Annotated[float | None, Query(ge=0, le=1)] = None,
@@ -99,6 +139,11 @@ def list_nodes(
         filters.append(VPNGateNode.protocol == protocol)
     if available is not None:
         filters.append(VPNGateNode.is_available.is_(available))
+    favorite_node_ids = select(FavoriteNode.node_id)
+    if favorite is True:
+        filters.append(VPNGateNode.id.in_(favorite_node_ids))
+    elif favorite is False:
+        filters.append(VPNGateNode.id.not_in(favorite_node_ids))
     if network_type is not None:
         filters.append(VPNGateNode.network_type == network_type)
     if asn is not None:
@@ -161,12 +206,20 @@ def list_nodes(
             )
         ).all()
     )
+    favorite_ids = set(
+        db.scalars(
+            select(FavoriteNode.node_id).where(
+                FavoriteNode.node_id.in_([record.id for record in records])
+            )
+        ).all()
+    )
     return NodeList(
         items=[
             NodeRead.model_validate(record).model_copy(
                 update={
                     "is_blocked": record.id in blocked_node_ids
-                    or record.config_hash in blocked_hashes
+                    or record.config_hash in blocked_hashes,
+                    "is_favorite": record.id in favorite_ids,
                 }
             )
             for record in records
@@ -175,6 +228,120 @@ def list_nodes(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post(
+    "/batch-scans",
+    response_model=BatchScanTaskRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_batch_scan(
+    request: Request,
+    payload: BatchScanRequest,
+    auth: ManageNodesAuth,
+    csrf: CsrfAuth,
+    db: DbSession,
+    batch_scanner: BatchScanner,
+) -> BatchScanTaskRead:
+    del csrf
+    try:
+        task = batch_scanner.start(
+            db,
+            node_ids=payload.node_ids,
+            scan_type=payload.scan_type,
+        )
+    except BatchScanTaskError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=exc.code,
+        ) from exc
+    record_audit(
+        db,
+        action="nodes.batch_scan.start",
+        status="success",
+        user_id=auth.user.id,
+        target_type="scheduled_task",
+        target_id=str(task.id),
+        ip_address=_client_ip(request),
+        details={
+            "scan_type": payload.scan_type,
+            "node_count": len(payload.node_ids),
+        },
+    )
+    db.commit()
+    db.refresh(task)
+    return _batch_scan_read(task)
+
+
+@router.get("/batch-scans/{task_id}", response_model=BatchScanTaskRead)
+def get_batch_scan(
+    task_id: Annotated[int, Path(ge=1)],
+    _: ReadNodesAuth,
+    db: DbSession,
+) -> BatchScanTaskRead:
+    task = db.get(ScheduledTask, task_id)
+    if task is None or task.task_type != "node_batch_scan":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Batch scan task not found",
+        )
+    return _batch_scan_read(task)
+
+
+@router.post("/{node_id}/favorite", response_model=NodeFavoriteRead)
+def favorite_node(
+    request: Request,
+    node_id: Annotated[int, Path(ge=1)],
+    auth: ManageNodesAuth,
+    csrf: CsrfAuth,
+    db: DbSession,
+) -> NodeFavoriteRead:
+    del csrf
+    node = db.get(VPNGateNode, node_id)
+    if node is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found")
+    favorite = db.scalar(select(FavoriteNode).where(FavoriteNode.node_id == node.id))
+    if favorite is None:
+        db.add(FavoriteNode(node_id=node.id, created_by_user_id=auth.user.id))
+    record_audit(
+        db,
+        action="nodes.favorite",
+        status="success",
+        user_id=auth.user.id,
+        target_type="vpngate_node",
+        target_id=str(node.id),
+        ip_address=_client_ip(request),
+    )
+    db.commit()
+    return NodeFavoriteRead(node_id=node.id, favorite=True)
+
+
+@router.delete("/{node_id}/favorite", response_model=NodeFavoriteRead)
+def unfavorite_node(
+    request: Request,
+    node_id: Annotated[int, Path(ge=1)],
+    auth: ManageNodesAuth,
+    csrf: CsrfAuth,
+    db: DbSession,
+) -> NodeFavoriteRead:
+    del csrf
+    node = db.get(VPNGateNode, node_id)
+    if node is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found")
+    favorite = db.scalar(select(FavoriteNode).where(FavoriteNode.node_id == node.id))
+    if favorite is not None:
+        db.delete(favorite)
+    record_audit(
+        db,
+        action="nodes.unfavorite",
+        status="success",
+        user_id=auth.user.id,
+        target_type="vpngate_node",
+        target_id=str(node.id),
+        ip_address=_client_ip(request),
+    )
+    db.commit()
+    return NodeFavoriteRead(node_id=node.id, favorite=False)
 
 
 @router.post("/{node_id}/block", response_model=NodeBlockRead)

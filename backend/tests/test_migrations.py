@@ -13,6 +13,7 @@ EXPECTED_TABLES = {
     "audit_logs",
     "blocked_nodes",
     "connection_events",
+    "favorite_nodes",
     "login_attempts",
     "node_scan_results",
     "scheduled_tasks",
@@ -35,6 +36,11 @@ EXPECTED_NODE_INTELLIGENCE_COLUMNS = {
     "network_classification_reasons",
 }
 
+EXPECTED_CONNECTION_ROUTING_COLUMNS = {
+    "routing_mode",
+    "preferred_country_code",
+}
+
 
 def test_alembic_upgrade_and_downgrade(tmp_path: Path) -> None:
     database_url = f"sqlite:///{tmp_path / 'migration.db'}"
@@ -48,6 +54,10 @@ def test_alembic_upgrade_and_downgrade(tmp_path: Path) -> None:
         column["name"] for column in inspect(engine).get_columns("vpngate_nodes")
     }
     assert EXPECTED_NODE_INTELLIGENCE_COLUMNS.issubset(node_columns)
+    connection_columns = {
+        column["name"] for column in inspect(engine).get_columns("vpn_connections")
+    }
+    assert EXPECTED_CONNECTION_ROUTING_COLUMNS.issubset(connection_columns)
     command.downgrade(config, "base")
     assert not EXPECTED_TABLES.intersection(inspect(engine).get_table_names())
     engine.dispose()

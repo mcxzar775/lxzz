@@ -39,6 +39,7 @@ from app.services.network.socks5 import (
     SocksEndpointService,
 )
 from app.services.scanning import (
+    BatchScanTaskService,
     FullScanRunner,
     IsolatedFullScanRunner,
     NamespaceExitProbe,
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     engine = create_database_engine(active_settings.database_url)
     active_settings = apply_stored_runtime_settings(active_settings, engine)
     health_monitor: ConnectionHealthMonitor | None = None
+    batch_scan_service: BatchScanTaskService | None = None
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -71,6 +73,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             network_executor,
             enable_real_connections=active_settings.enable_real_connections,
         )
+        if batch_scan_service is not None:
+            await asyncio.to_thread(batch_scan_service.recover_interrupted)
         if active_settings.enable_auto_switch and health_monitor is not None:
             stop_event = asyncio.Event()
             monitor_task = asyncio.create_task(health_monitor.run(stop_event))
@@ -81,6 +85,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 stop_event.set()
             if monitor_task is not None:
                 await monitor_task
+            if batch_scan_service is not None:
+                await batch_scan_service.stop()
             engine.dispose()
 
     configure_logging()
@@ -234,6 +240,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         fast_timeout_seconds=active_settings.scan_total_timeout_seconds,
         full_timeout_seconds=active_settings.full_scan_timeout_seconds,
     )
+    batch_scan_service = BatchScanTaskService(
+        session_factory,
+        application.state.node_scan_coordinator,
+        application.state.ip_intelligence_service,
+    )
+    application.state.batch_scan_service = batch_scan_service
     application.state.vpngate_fetcher = VPNGateClient(
         url=active_settings.vpngate_api_url,
         timeout_seconds=active_settings.vpngate_request_timeout_seconds,

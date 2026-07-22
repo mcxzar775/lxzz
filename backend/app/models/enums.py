@@ -16,6 +16,13 @@ class ConnectionStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class RoutingMode(str, Enum):
+    AUTO = "AUTO"
+    FIXED_COUNTRY = "FIXED_COUNTRY"
+    FAVORITES = "FAVORITES"
+    FIXED_NODE = "FIXED_NODE"
+
+
 class ScanStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"

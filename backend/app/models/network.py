@@ -5,7 +5,13 @@ from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Intege
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, utcnow
-from app.models.enums import ConnectionStatus, NetworkType, ScanStatus, TaskStatus
+from app.models.enums import (
+    ConnectionStatus,
+    NetworkType,
+    RoutingMode,
+    ScanStatus,
+    TaskStatus,
+)
 
 
 class VPNGateNode(TimestampMixin, Base):
@@ -79,6 +85,10 @@ class VPNConnection(TimestampMixin, Base):
     node_id: Mapped[int | None] = mapped_column(
         ForeignKey("vpngate_nodes.id", ondelete="SET NULL"), index=True
     )
+    routing_mode: Mapped[RoutingMode] = mapped_column(
+        String(32), default=RoutingMode.AUTO, nullable=False, index=True
+    )
+    preferred_country_code: Mapped[str | None] = mapped_column(String(8), index=True)
     namespace: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     veth_host: Mapped[str] = mapped_column(String(32), unique=True)
     veth_namespace: Mapped[str] = mapped_column(String(32), unique=True)
@@ -158,6 +168,19 @@ class BlockedNode(Base):
     )
     config_hash: Mapped[str] = mapped_column(String(64), unique=True)
     reason: Mapped[str | None] = mapped_column(String(255))
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(default=utcnow, nullable=False)
+
+
+class FavoriteNode(Base):
+    __tablename__ = "favorite_nodes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    node_id: Mapped[int] = mapped_column(
+        ForeignKey("vpngate_nodes.id", ondelete="CASCADE"), unique=True, index=True
+    )
     created_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )

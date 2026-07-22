@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import time
 
 from app.models.enums import ScanStatus
 from app.services.ip_intelligence import IPIntelligence, IPIntelligenceService
@@ -117,6 +118,33 @@ def test_viewer_cannot_refresh_nodes(
     assert response.status_code == 403
 
 
+def test_admin_can_favorite_and_filter_nodes(
+    app: FastAPI,
+    client: TestClient,
+    test_users: UserCredentials,
+) -> None:
+    csrf = _refresh_one_node(app, client, test_users)
+
+    favorited = client.post(
+        "/api/v1/nodes/1/favorite",
+        headers={"X-CSRF-Token": csrf},
+    )
+    favorites = client.get("/api/v1/nodes?favorite=true")
+    unfavorited = client.delete(
+        "/api/v1/nodes/1/favorite",
+        headers={"X-CSRF-Token": csrf},
+    )
+    remaining = client.get("/api/v1/nodes?favorite=true")
+
+    assert favorited.status_code == 200, favorited.text
+    assert favorited.json() == {"node_id": 1, "favorite": True}
+    assert favorites.json()["total"] == 1
+    assert favorites.json()["items"][0]["is_favorite"] is True
+    assert unfavorited.status_code == 200
+    assert unfavorited.json() == {"node_id": 1, "favorite": False}
+    assert remaining.json()["total"] == 0
+
+
 def test_refresh_requires_csrf(
     app: FastAPI,
     client: TestClient,
@@ -172,6 +200,58 @@ def test_admin_runs_simulated_fast_scan_and_viewer_reads_history(
     assert history.status_code == 200
     assert history.json()["total"] == 1
     assert history.json()["items"][0]["id"] == result["id"]
+
+
+def test_batch_scan_reports_bounded_progress(
+    app: FastAPI,
+    client: TestClient,
+    test_users: UserCredentials,
+) -> None:
+    first_config = make_openvpn_config("8.8.8.8")
+    second_config = make_openvpn_config("1.1.1.1")
+    app.state.vpngate_fetcher = StaticFetcher(
+        make_vpngate_csv(
+            [
+                make_csv_row(first_config, ip_address="8.8.8.8"),
+                make_csv_row(
+                    second_config,
+                    ip_address="1.1.1.1",
+                    host_name="public-vpn-2",
+                ),
+            ]
+        )
+    )
+    csrf = login(client, test_users.admin_username, test_users.admin_password)
+    refreshed = client.post(
+        "/api/v1/nodes/refresh",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert refreshed.status_code == 200
+
+    started = client.post(
+        "/api/v1/nodes/batch-scans",
+        headers={"X-CSRF-Token": csrf},
+        json={"node_ids": [1, 2], "scan_type": "fast"},
+    )
+    assert started.status_code == 202, started.text
+    task_id = started.json()["id"]
+
+    progress = started.json()
+    for _ in range(100):
+        progress_response = client.get(f"/api/v1/nodes/batch-scans/{task_id}")
+        assert progress_response.status_code == 200
+        progress = progress_response.json()
+        if progress["status"] in {"SUCCEEDED", "FAILED", "CANCELLED"}:
+            break
+        time.sleep(0.01)
+
+    assert progress["status"] == "SUCCEEDED"
+    assert progress["total"] == 2
+    assert progress["completed"] == 2
+    assert progress["succeeded"] == 2
+    assert progress["failed"] == 0
+    assert {item["node_id"] for item in progress["items"]} == {1, 2}
+    assert all(item["simulated"] is True for item in progress["items"])
 
 
 def test_real_scan_outcome_updates_availability_without_exposing_config(

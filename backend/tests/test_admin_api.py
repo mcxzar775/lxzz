@@ -105,6 +105,39 @@ def test_admin_cannot_read_audit_logs_or_manage_system_settings(
     assert update.status_code == 403
 
 
+def test_super_admin_reads_safe_runtime_diagnostics(
+    client: TestClient,
+    test_users: UserCredentials,
+) -> None:
+    login(client, test_users.super_username, test_users.super_password)
+
+    response = client.get("/api/v1/diagnostics")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["runtime_mode"] == "simulated"
+    assert body["real_feature_gates"]["network"] is False
+    assert body["checks"][0] == {
+        "key": "database",
+        "label": "Database",
+        "status": "PASS",
+        "detail": "reachable",
+    }
+    serialized = response.text.lower()
+    assert "password" not in serialized
+    assert "token" not in serialized
+    assert "cookie" not in serialized
+
+
+def test_admin_cannot_read_runtime_diagnostics(
+    client: TestClient,
+    test_users: UserCredentials,
+) -> None:
+    login(client, test_users.admin_username, test_users.admin_password)
+
+    assert client.get("/api/v1/diagnostics").status_code == 403
+
+
 def test_node_blacklist_is_visible_and_reversible(
     app: FastAPI,
     client: TestClient,

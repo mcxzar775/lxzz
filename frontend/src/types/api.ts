@@ -63,6 +63,7 @@ export interface VPNGateNode {
   remote_port: number
   is_available: boolean
   is_blocked: boolean
+  is_favorite: boolean
   asn: number | null
   asn_organization: string | null
   isp: string | null
@@ -111,10 +112,39 @@ export interface NodeScanResponse {
   completed_at: string | null
 }
 
+export type TaskStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+
+export interface BatchScanItem {
+  node_id: number
+  status: 'SUCCEEDED' | 'FAILED' | 'TIMEOUT'
+  error_code: string | null
+  simulated: boolean
+}
+
+export interface BatchScanTask {
+  id: number
+  status: TaskStatus
+  scan_type: 'fast' | 'full'
+  total: number
+  completed: number
+  succeeded: number
+  failed: number
+  items: BatchScanItem[]
+  last_error: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
 export interface NodeBlockResponse {
   node_id: number
   blocked: boolean
   reason: string | null
+}
+
+export interface NodeFavoriteResponse {
+  node_id: number
+  favorite: boolean
 }
 
 export type ConnectionStatus =
@@ -125,6 +155,8 @@ export type ConnectionStatus =
   | 'STOPPED'
   | 'FAILED'
 
+export type RoutingMode = 'AUTO' | 'FIXED_COUNTRY' | 'FAVORITES' | 'FIXED_NODE'
+
 export type UnlockServiceName = 'netflix' | 'chatgpt' | 'openai_api' | 'youtube'
 
 export interface VPNConnection {
@@ -134,6 +166,8 @@ export interface VPNConnection {
   node_ip: string | null
   node_country_code: string | null
   node_speed_bps: number | null
+  routing_mode: RoutingMode
+  preferred_country_code: string | null
   namespace: string
   tun_device: string
   status: ConnectionStatus
@@ -282,6 +316,24 @@ export interface AdminSettings {
   auto_switch_max_per_hour: number
   ipinfo_api_token_configured: boolean
   requires_restart: boolean
+}
+
+export interface DiagnosticCheck {
+  key: string
+  label: string
+  status: 'PASS' | 'WARN' | 'FAIL' | 'SKIP'
+  detail: string
+}
+
+export interface RuntimeDiagnostics {
+  version: string
+  environment: string
+  runtime_mode: 'simulated' | 'real'
+  network_executor: string
+  real_feature_gates: Record<string, boolean>
+  overall_status: 'PASS' | 'WARN' | 'FAIL'
+  checks: DiagnosticCheck[]
+  generated_at: string
 }
 
 export interface UserListResponse {

@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router'
 import { apiRequest } from '../api/http'
 import AppSidebar from '../components/AppSidebar.vue'
 import { useAuthStore } from '../stores/auth'
-import type { AdminSettings, User, UserListResponse, UserRole } from '../types/api'
+import type { AdminSettings, DiagnosticCheck, RuntimeDiagnostics, User, UserListResponse, UserRole } from '../types/api'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -32,6 +32,8 @@ const settings = reactive<AdminSettings>({
   requires_restart: false,
 })
 const dnsInput = ref('1.1.1.1, 8.8.8.8')
+const diagnostics = ref<RuntimeDiagnostics | null>(null)
+const diagnosticsLoading = ref(false)
 
 const roleLabels: Record<UserRole, string> = {
   SUPER_ADMIN: '超级管理员',
@@ -55,10 +57,28 @@ async function loadSettings(): Promise<void> {
   dnsInput.value = result.namespace_dns_servers.join(', ')
 }
 
+async function loadDiagnostics(): Promise<void> {
+  diagnosticsLoading.value = true
+  try {
+    diagnostics.value = await apiRequest<RuntimeDiagnostics>('/api/v1/diagnostics')
+  } catch {
+    ElMessage.error('运行诊断加载失败')
+  } finally {
+    diagnosticsLoading.value = false
+  }
+}
+
+function diagnosticTag(status: DiagnosticCheck['status']): 'success' | 'warning' | 'danger' | 'info' {
+  if (status === 'PASS') return 'success'
+  if (status === 'FAIL') return 'danger'
+  if (status === 'WARN') return 'warning'
+  return 'info'
+}
+
 async function loadData(): Promise<void> {
   loading.value = true
   try {
-    await Promise.all([loadUsers(), loadSettings()])
+    await Promise.all([loadUsers(), loadSettings(), loadDiagnostics()])
   } catch {
     ElMessage.error('管理数据加载失败')
   } finally {
@@ -219,6 +239,24 @@ onMounted(loadData)
                 <el-form-item label="Namespace DNS（1–3 个规范公共 IP）"><el-input v-model="dnsInput" placeholder="1.1.1.1, 8.8.8.8" /></el-form-item>
                 <el-button type="primary" :loading="saving" @click="saveSettings">保存设置</el-button>
               </el-form>
+            </el-tab-pane>
+
+            <el-tab-pane label="运行诊断" name="diagnostics">
+              <div class="tab-toolbar"><p>只读检查数据库、执行器、TUN、OpenVPN、SOCKS5、防火墙和受限 root helper；不会发起真实网络操作。</p><el-button :loading="diagnosticsLoading" @click="loadDiagnostics">重新检查</el-button></div>
+              <template v-if="diagnostics">
+                <div class="diagnostics-summary">
+                  <div><span>版本</span><strong>v{{ diagnostics.version }}</strong></div>
+                  <div><span>运行模式</span><strong>{{ diagnostics.runtime_mode === 'real' ? '真实网络' : '模拟执行器' }}</strong></div>
+                  <div><span>环境</span><strong>{{ diagnostics.environment }}</strong></div>
+                  <div><span>总状态</span><el-tag :type="diagnostics.overall_status === 'PASS' ? 'success' : diagnostics.overall_status === 'FAIL' ? 'danger' : 'warning'" effect="dark">{{ diagnostics.overall_status }}</el-tag></div>
+                </div>
+                <el-table :data="diagnostics.checks" empty-text="暂无诊断结果">
+                  <el-table-column label="检查项" min-width="210"><template #default="{ row }: { row: DiagnosticCheck }"><div class="cell-stack"><strong>{{ row.label }}</strong><span>{{ row.key }}</span></div></template></el-table-column>
+                  <el-table-column label="状态" width="110"><template #default="{ row }: { row: DiagnosticCheck }"><el-tag :type="diagnosticTag(row.status)" effect="dark">{{ row.status }}</el-tag></template></el-table-column>
+                  <el-table-column label="安全详情" min-width="240"><template #default="{ row }: { row: DiagnosticCheck }"><span class="mono">{{ row.detail }}</span></template></el-table-column>
+                </el-table>
+                <div class="feature-gates"><span v-for="(enabled, key) in diagnostics.real_feature_gates" :key="key"><el-tag :type="enabled ? 'warning' : 'info'" size="small">{{ key }}: {{ enabled ? 'REAL' : 'OFF' }}</el-tag></span></div>
+              </template>
             </el-tab-pane>
           </el-tabs>
         </section>

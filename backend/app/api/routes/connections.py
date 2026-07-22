@@ -12,10 +12,11 @@ from app.api.dependencies import (
     require_permission,
 )
 from app.core.permissions import Permission
-from app.models.enums import ConnectionStatus
+from app.models.enums import ConnectionStatus, RoutingMode
 from app.models.network import (
     BlockedNode,
     ConnectionEvent,
+    FavoriteNode,
     ServiceCheck,
     SocksEndpoint,
     VPNConnection,
@@ -30,6 +31,7 @@ from app.schemas.connections import (
     ConnectionLifecycleResponse,
     ConnectionLifecycleResultRead,
     ConnectionRead,
+    ConnectionRoutingUpdate,
     ConnectionSwitchRequest,
     ConnectionSwitchResponse,
     HealthCheckResponse,
@@ -252,11 +254,28 @@ def create_connection(
             status_code=status.HTTP_409_CONFLICT,
             detail="Node is unavailable or blocked",
         )
+    if (
+        payload.routing_mode is RoutingMode.FIXED_COUNTRY
+        and node.country_code != payload.preferred_country_code
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="routing_policy_node_mismatch",
+        )
+    if payload.routing_mode is RoutingMode.FAVORITES and db.scalar(
+        select(FavoriteNode.id).where(FavoriteNode.node_id == node.id)
+    ) is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="favorite_node_required",
+        )
 
     temporary = secrets.token_hex(8)
     connection = VPNConnection(
         name=payload.name,
         node_id=node.id,
+        routing_mode=payload.routing_mode,
+        preferred_country_code=payload.preferred_country_code,
         namespace=f"pending-{temporary}",
         veth_host=f"pending-h-{temporary}",
         veth_namespace=f"pending-n-{temporary}",
@@ -300,6 +319,8 @@ def create_connection(
             message="connection created",
             details={
                 "node_id": node.id,
+                "routing_mode": payload.routing_mode.value,
+                "preferred_country_code": payload.preferred_country_code,
                 "socks_enabled": payload.create_socks,
                 "simulated": True,
             },
@@ -313,7 +334,12 @@ def create_connection(
         target_type="vpn_connection",
         target_id=str(connection.id),
         ip_address=_client_ip(request),
-        details={"node_id": node.id, "socks_enabled": payload.create_socks},
+        details={
+            "node_id": node.id,
+            "routing_mode": payload.routing_mode.value,
+            "preferred_country_code": payload.preferred_country_code,
+            "socks_enabled": payload.create_socks,
+        },
     )
     db.commit()
     db.refresh(connection)
@@ -321,6 +347,80 @@ def create_connection(
         connection=_connection_read(db, connection),
         one_time_socks_password=one_time_password,
     )
+
+
+@router.put("/{connection_id}/routing", response_model=ConnectionRead)
+def update_connection_routing(
+    request: Request,
+    connection_id: Annotated[int, Path(ge=1)],
+    payload: ConnectionRoutingUpdate,
+    auth: ManageConnectionsAuth,
+    csrf: CsrfAuth,
+    db: DbSession,
+) -> ConnectionRead:
+    del csrf
+    connection = db.get(VPNConnection, connection_id)
+    if connection is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Connection not found",
+        )
+    if connection.status != ConnectionStatus.STOPPED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="routing_policy_requires_stopped_connection",
+        )
+    node = db.get(VPNGateNode, connection.node_id) if connection.node_id else None
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="connection_node_missing",
+        )
+    if (
+        payload.routing_mode is RoutingMode.FIXED_COUNTRY
+        and node.country_code != payload.preferred_country_code
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="routing_policy_node_mismatch",
+        )
+    if payload.routing_mode is RoutingMode.FAVORITES and db.scalar(
+        select(FavoriteNode.id).where(FavoriteNode.node_id == node.id)
+    ) is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="favorite_node_required",
+        )
+    connection.routing_mode = payload.routing_mode
+    connection.preferred_country_code = payload.preferred_country_code
+    db.add(
+        ConnectionEvent(
+            connection_id=connection.id,
+            event_type="routing_policy_updated",
+            status=ConnectionStatus(connection.status).value,
+            message="routing policy updated",
+            details={
+                "routing_mode": payload.routing_mode.value,
+                "preferred_country_code": payload.preferred_country_code,
+            },
+        )
+    )
+    record_audit(
+        db,
+        action="connections.routing.update",
+        status="success",
+        user_id=auth.user.id,
+        target_type="vpn_connection",
+        target_id=str(connection.id),
+        ip_address=_client_ip(request),
+        details={
+            "routing_mode": payload.routing_mode.value,
+            "preferred_country_code": payload.preferred_country_code,
+        },
+    )
+    db.commit()
+    db.refresh(connection)
+    return _connection_read(db, connection)
 
 
 async def _run_lifecycle_action(

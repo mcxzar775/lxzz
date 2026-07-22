@@ -15,6 +15,7 @@ import type {
   ConnectionSwitchResponse,
   HealthCheckResponse,
   NodeListResponse,
+  RoutingMode,
   SocksPasswordRotateResponse,
   UserRole,
   VPNConnection,
@@ -32,14 +33,22 @@ const actionId = ref<number | null>(null)
 const createVisible = ref(false)
 const eventsVisible = ref(false)
 const credentialVisible = ref(false)
+const routingVisible = ref(false)
 const oneTimeCredential = ref({ username: '', password: '', port: 0 })
 const createForm = reactive({
   name: '',
   node_id: null as number | null,
+  routing_mode: 'AUTO' as RoutingMode,
+  preferred_country_code: '',
   create_socks: true,
   socks_username: '',
   socks_port: undefined as number | undefined,
   allowlist: '',
+})
+const routingForm = reactive({
+  connection_id: 0,
+  routing_mode: 'AUTO' as RoutingMode,
+  preferred_country_code: '',
 })
 
 const roleLabels: Record<UserRole, string> = {
@@ -50,6 +59,23 @@ const roleLabels: Record<UserRole, string> = {
 const roleLabel = computed(() => (auth.user ? roleLabels[auth.user.role] : ''))
 const canManage = computed(() => auth.permissions.includes('network:manage'))
 const availableNodes = computed(() => nodes.value.filter((node) => node.is_available && !node.is_blocked))
+const selectableNodes = computed(() => {
+  if (createForm.routing_mode === 'FAVORITES') {
+    return availableNodes.value.filter((node) => node.is_favorite)
+  }
+  if (createForm.routing_mode === 'FIXED_COUNTRY' && /^[A-Za-z]{2}$/.test(createForm.preferred_country_code)) {
+    const code = createForm.preferred_country_code.toUpperCase()
+    return availableNodes.value.filter((node) => node.country_code === code)
+  }
+  return availableNodes.value
+})
+
+const routingLabels: Record<RoutingMode, string> = {
+  AUTO: '智能自动',
+  FIXED_COUNTRY: '固定国家',
+  FAVORITES: '收藏节点',
+  FIXED_NODE: '固定节点',
+}
 
 const statusLabels: Record<string, string> = {
   PENDING: '待处理',
@@ -127,6 +153,10 @@ async function createConnection(): Promise<void> {
       body: JSON.stringify({
         name: createForm.name.trim(),
         node_id: createForm.node_id,
+        routing_mode: createForm.routing_mode,
+        preferred_country_code: createForm.routing_mode === 'FIXED_COUNTRY'
+          ? createForm.preferred_country_code.trim().toUpperCase()
+          : null,
         create_socks: createForm.create_socks,
         socks_username: createForm.socks_username.trim() || null,
         socks_port: createForm.socks_port ?? null,
@@ -146,12 +176,41 @@ async function createConnection(): Promise<void> {
       }
       credentialVisible.value = true
     }
-    Object.assign(createForm, { name: '', node_id: null, create_socks: true, socks_username: '', socks_port: undefined, allowlist: '' })
+    Object.assign(createForm, { name: '', node_id: null, routing_mode: 'AUTO', preferred_country_code: '', create_socks: true, socks_username: '', socks_port: undefined, allowlist: '' })
     ElMessage.success('连接已创建')
   } catch {
     ElMessage.error('连接创建失败，请检查节点状态和输入')
   } finally {
     loading.value = false
+  }
+}
+
+function openRouting(connection: VPNConnection): void {
+  routingForm.connection_id = connection.id
+  routingForm.routing_mode = connection.routing_mode
+  routingForm.preferred_country_code = connection.preferred_country_code ?? ''
+  routingVisible.value = true
+}
+
+async function updateRouting(): Promise<void> {
+  actionId.value = routingForm.connection_id
+  try {
+    const updated = await apiRequest<VPNConnection>(`/api/v1/connections/${routingForm.connection_id}/routing`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        routing_mode: routingForm.routing_mode,
+        preferred_country_code: routingForm.routing_mode === 'FIXED_COUNTRY'
+          ? routingForm.preferred_country_code.trim().toUpperCase()
+          : null,
+      }),
+    })
+    replaceConnection(updated)
+    routingVisible.value = false
+    ElMessage.success('路由策略已更新')
+  } catch {
+    ElMessage.error('路由策略与当前节点不匹配，或连接尚未停止')
+  } finally {
+    actionId.value = null
   }
 }
 
@@ -255,6 +314,7 @@ async function runCommand(command: string, connection: VPNConnection): Promise<v
   else if (command === 'health') await checkHealth(connection)
   else if (command === 'password') await rotatePassword(connection)
   else if (command === 'events') await showEvents(connection)
+  else if (command === 'routing') openRouting(connection)
   else if (command === 'delete') await deleteConnection(connection)
 }
 
@@ -296,6 +356,9 @@ onMounted(loadData)
             <el-table-column label="节点 / 出口" min-width="180">
               <template #default="{ row }: { row: VPNConnection }"><div class="cell-stack"><strong class="mono">{{ row.node_ip ?? `#${row.node_id}` }}</strong><span class="mono">{{ row.exit_ip ?? '无活动出口' }}</span></div></template>
             </el-table-column>
+            <el-table-column label="路由策略" min-width="130">
+              <template #default="{ row }: { row: VPNConnection }"><div class="cell-stack"><strong>{{ routingLabels[row.routing_mode] }}</strong><span>{{ row.preferred_country_code ?? (row.routing_mode === 'FIXED_NODE' ? `节点 #${row.node_id}` : '按质量选择') }}</span></div></template>
+            </el-table-column>
             <el-table-column label="SOCKS5" min-width="170">
               <template #default="{ row }: { row: VPNConnection }"><div class="cell-stack"><strong>{{ row.socks_port ? `0.0.0.0:${row.socks_port}` : '未配置' }}</strong><span>{{ row.socks_username ?? '—' }} · {{ row.socks_active ? '在线' : '离线' }}</span></div></template>
             </el-table-column>
@@ -312,6 +375,7 @@ onMounted(loadData)
                     <el-dropdown-item v-if="canManage" command="restart" :disabled="row.status !== 'RUNNING'">重启</el-dropdown-item>
                     <el-dropdown-item v-if="canManage" command="switch" :disabled="row.status !== 'RUNNING'">切换节点</el-dropdown-item>
                     <el-dropdown-item v-if="canManage" command="health" :disabled="row.status !== 'RUNNING'">健康检测</el-dropdown-item>
+                    <el-dropdown-item v-if="canManage" command="routing" :disabled="row.status !== 'STOPPED'">路由策略</el-dropdown-item>
                     <el-dropdown-item v-if="canManage && row.socks_port" command="password" :disabled="row.socks_active">改 SOCKS 密码</el-dropdown-item>
                     <el-dropdown-item command="events">事件历史</el-dropdown-item>
                     <el-dropdown-item v-if="canManage" command="delete" divided :disabled="row.status !== 'STOPPED'">删除</el-dropdown-item>
@@ -327,14 +391,28 @@ onMounted(loadData)
     <el-dialog v-model="createVisible" title="创建隔离连接" width="min(36rem, 92vw)">
       <el-form label-position="top">
         <el-form-item label="连接名称"><el-input v-model="createForm.name" maxlength="96" placeholder="例如 us-primary" /></el-form-item>
-        <el-form-item label="VPNGate 节点"><el-select v-model="createForm.node_id" filterable placeholder="选择可用且未拉黑的节点"><el-option v-for="node in availableNodes" :key="node.id" :value="node.id" :label="`${node.country_code ?? '—'} · ${node.ip_address} · ${node.ping_ms ?? '—'} ms`" /></el-select></el-form-item>
+        <div class="dialog-grid">
+          <el-form-item label="路由策略"><el-select v-model="createForm.routing_mode" @change="createForm.node_id = null"><el-option v-for="(label, value) in routingLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+          <el-form-item v-if="createForm.routing_mode === 'FIXED_COUNTRY'" label="固定国家代码"><el-input v-model="createForm.preferred_country_code" maxlength="2" placeholder="例如 JP" @input="createForm.node_id = null" /></el-form-item>
+        </div>
+        <el-form-item label="VPNGate 节点"><el-select v-model="createForm.node_id" filterable placeholder="选择符合策略的可用节点"><el-option v-for="node in selectableNodes" :key="node.id" :value="node.id" :label="`${node.is_favorite ? '★ ' : ''}${node.country_code ?? '—'} · ${node.ip_address} · ${node.ping_ms ?? '—'} ms`" /></el-select></el-form-item>
         <el-switch v-model="createForm.create_socks" active-text="同时创建 SOCKS5 端点" />
         <template v-if="createForm.create_socks">
           <div class="dialog-grid"><el-form-item label="用户名（留空自动生成）"><el-input v-model="createForm.socks_username" /></el-form-item><el-form-item label="端口（留空自动分配）"><el-input-number v-model="createForm.socks_port" :min="1024" :max="65535" controls-position="right" /></el-form-item></div>
           <el-form-item label="客户端 IP/CIDR 白名单"><el-input v-model="createForm.allowlist" type="textarea" :rows="3" placeholder="每行或逗号分隔；留空表示由防火墙策略决定" /></el-form-item>
         </template>
       </el-form>
-      <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :disabled="!createForm.name.trim() || !createForm.node_id" @click="createConnection">创建</el-button></template>
+      <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :disabled="!createForm.name.trim() || !createForm.node_id || (createForm.routing_mode === 'FIXED_COUNTRY' && !/^[A-Za-z]{2}$/.test(createForm.preferred_country_code))" @click="createConnection">创建</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="routingVisible" title="更新路由策略" width="min(32rem, 92vw)">
+      <el-form label-position="top">
+        <el-form-item label="路由模式"><el-select v-model="routingForm.routing_mode"><el-option v-for="(label, value) in routingLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+        <el-form-item v-if="routingForm.routing_mode === 'FIXED_COUNTRY'" label="国家代码"><el-input v-model="routingForm.preferred_country_code" maxlength="2" placeholder="必须与当前节点国家一致" /></el-form-item>
+        <el-alert v-if="routingForm.routing_mode === 'FAVORITES'" type="info" :closable="false" title="当前节点必须已收藏；自动切换只会选择收藏且可用的节点。" />
+        <el-alert v-if="routingForm.routing_mode === 'FIXED_NODE'" type="warning" :closable="false" title="固定节点模式会禁用自动切换。" />
+      </el-form>
+      <template #footer><el-button @click="routingVisible = false">取消</el-button><el-button type="primary" @click="updateRouting">保存策略</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="credentialVisible" title="一次性 SOCKS5 凭据" width="min(34rem, 92vw)" :close-on-click-modal="false">
