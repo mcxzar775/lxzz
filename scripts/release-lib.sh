@@ -55,6 +55,7 @@ prepare_release_tree() {
         "${PROJECT_ROOT}/backend/app/__init__.py")"
     [[ "$runtime_version" == "$version" ]] \
         || fail "pyproject and runtime versions do not match"
+    chmod 0755 "$target"
     install -d -m 0755 "$target/backend" "$target/frontend/dist"
     cp -a "${PROJECT_ROOT}/backend/app" "$target/backend/"
     cp -a "${PROJECT_ROOT}/backend/alembic" "$target/backend/"

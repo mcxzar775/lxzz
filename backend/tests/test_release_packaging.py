@@ -77,7 +77,7 @@ def test_release_archive_is_reproducible_manifested_and_secret_free(
         assert manifest_file is not None
         manifest: dict[str, Any] = json.loads(manifest_file.read())
         assert manifest["format"] == 1
-        assert manifest["version"] == "0.1.1"
+        assert manifest["version"] == "0.1.2"
         covered = {f"{prefix}/{item['path']}" for item in manifest["files"]}
         assert set(names) == covered | {f"{prefix}/RELEASE-MANIFEST.json"}
 

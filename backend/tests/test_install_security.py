@@ -26,6 +26,18 @@ def test_service_account_cannot_modify_helper_or_application_code() -> None:
     assert 'chown -R root:root "$target"' in release_library
 
 
+def test_release_root_is_traversable_by_the_service_account() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    release_library = (project_root / "scripts/release-lib.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'chmod 0755 "$target"' in release_library
+    assert release_library.index('chmod 0755 "$target"') < release_library.index(
+        'install -d -m 0755 "$target/backend"'
+    )
+
+
 def test_3proxy_source_download_is_versioned_and_checksum_verified() -> None:
     project_root = Path(__file__).resolve().parents[2]
     installer = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
