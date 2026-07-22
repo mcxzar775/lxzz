@@ -109,6 +109,21 @@ def test_noninteractive_passwords_use_private_files_not_password_argv() -> None:
     assert '--password "$VPNGATE_RESET_PASSWORD"' not in resetter
 
 
+def test_optional_shell_guards_return_success_under_errexit() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    scripts = [
+        project_root / "scripts/install.sh",
+        project_root / "scripts/reset-password.sh",
+        project_root / "scripts/repair.sh",
+        project_root / "scripts/upgrade.sh",
+        project_root / "scripts/uninstall.sh",
+    ]
+
+    for script in scripts:
+        text = script.read_text(encoding="utf-8")
+        assert "] || return\n" not in text
+
+
 def test_uninstall_cleans_managed_resources_before_removing_helper() -> None:
     project_root = Path(__file__).resolve().parents[2]
     uninstall = (project_root / "scripts/uninstall.sh").read_text(encoding="utf-8")

@@ -9,14 +9,14 @@ source "${SCRIPT_DIR}/lib.sh"
 RESET_PASSWORD_FILE=""
 
 cleanup_password_file() {
-    [[ -n "$RESET_PASSWORD_FILE" ]] || return
+    [[ -n "$RESET_PASSWORD_FILE" ]] || return 0
     [[ "$RESET_PASSWORD_FILE" == "${DATA_DIR}/.reset-password-"* ]] \
         || fail "unsafe transient password path"
     rm -f -- "$RESET_PASSWORD_FILE"
 }
 
 prepare_password_file() {
-    [[ -n "${VPNGATE_RESET_PASSWORD:-}" ]] || return
+    [[ -n "${VPNGATE_RESET_PASSWORD:-}" ]] || return 0
     RESET_PASSWORD_FILE="${DATA_DIR}/.reset-password-$$"
     [[ ! -e "$RESET_PASSWORD_FILE" ]] || fail "transient password file already exists"
     (umask 077 && printf '%s' "$VPNGATE_RESET_PASSWORD" >"$RESET_PASSWORD_FILE")

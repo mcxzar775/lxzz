@@ -12,8 +12,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "e0a67eec2056069ab2636075c6615c3c5027a9dda0a89e627fb002b8e27badbe",
-      "size": 1063
+      "sha256": "1c441d6eca7358fa92f39224cd9a49c344fb5d7f613b8913648e44f50d9099dc",
+      "size": 1484
     },
     {
       "path": "Makefile",
@@ -22,7 +22,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "1d766097d8318696cec248692d7a3506394303a62f44688999d6cb285534746a",
+      "sha256": "22e2add87e5eda9f0bca46c68789ed115a8f2b596dae5f2f6256207d4884d3eb",
       "size": 16210
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "path": "VERSION",
-      "sha256": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
+      "sha256": "80447316529fc62014fbaa047fb67c51ac30e32830cda370405349d8d66d196c",
       "size": 6
     },
     {
@@ -67,8 +67,8 @@
     },
     {
       "path": "backend/app/__init__.py",
-      "sha256": "5991dae085907017960ab44ef64287a82582a280979ea975f3096a602aa08a95",
-      "size": 66
+      "sha256": "fb65ed61b7fce64a78f4a5f812c10c4cbc72f2d43141ae2d4382db00cf7393f6",
+      "size": 65
     },
     {
       "path": "backend/app/api/__init__.py",
@@ -457,7 +457,7 @@
     },
     {
       "path": "backend/pyproject.toml",
-      "sha256": "be9785603ca167289195378ba7f691641da5870cfbda8b2e9e8b26bedfff3eb3",
+      "sha256": "63933cb5adc498b412a22e385f747f3a9cb8c084d5b85f0389ad626d985fa5e5",
       "size": 1004
     },
     {
@@ -507,8 +507,8 @@
     },
     {
       "path": "backend/tests/test_install_security.py",
-      "sha256": "26390e10ccd2c63107db68a1304ad30c87ee27edc16524959e0ee641a91e2218",
-      "size": 5229
+      "sha256": "deb155f3850be6345fec6d8577300163f7e609cb6f3b1a51f17f48c7b25abfee",
+      "size": 5733
     },
     {
       "path": "backend/tests/test_ip_intelligence.py",
@@ -567,8 +567,8 @@
     },
     {
       "path": "backend/tests/test_release_packaging.py",
-      "sha256": "d420d607208a7e20ef98b516365ae343e6a6008eeb6ee75e4ea613a279c1ff90",
-      "size": 4931
+      "sha256": "03cc458265682fe1020a3b24ce1906fdb6107914b07242ea460c02323d96deb1",
+      "size": 5619
     },
     {
       "path": "backend/tests/test_root_helper.py",
@@ -627,7 +627,7 @@
     },
     {
       "path": "backend/uv.lock",
-      "sha256": "1b5cfa72bf403be0745cc4eb4e3f65cb0d0d27f213ed43f0d324fc4d938c0eee",
+      "sha256": "66c60979d27069d851791bc04398bd62604fab679f0affddee9361548b4d16d6",
       "size": 385955
     },
     {
@@ -657,7 +657,7 @@
     },
     {
       "path": "docs/GITHUB.md",
-      "sha256": "bf4da69b1f62c553b4d3f0b279847dd95d2d208b1b8bf5d144f1e58f869df98a",
+      "sha256": "276f2cf49fee40df1566e8dc6447dad24098bb2d078d764b67d238a47acf4fc5",
       "size": 1762
     },
     {
@@ -687,7 +687,7 @@
     },
     {
       "path": "frontend/package.json",
-      "sha256": "892b80f8cb8818786dab198c35256830348a2c551d72b5833f75557b7a73c338",
+      "sha256": "71ad4e24cd90629f9365f152a68cba2583e45faf03eff72d026159c47d6f0b93",
       "size": 551
     },
     {
@@ -807,13 +807,13 @@
     },
     {
       "path": "scripts/install-from-github.sh",
-      "sha256": "7c4e010bdc7ffd82d6f2da9df6008e5b056424813fde7d4b77ac56e9c2a3ba06",
-      "size": 3652
+      "sha256": "59bf606481f998b95cca5e881f4f4fd31e11c40d1ac039b8f33ef68ac71d2bdf",
+      "size": 4979
     },
     {
       "path": "scripts/install.sh",
-      "sha256": "64ac68b510f232890da4f5a4fef3e446fb460d310f43590d875da661a8f1a302",
-      "size": 9777
+      "sha256": "9c36f8f17f1bb9f775c0bf3787ea443080d197588782858f0c589978a6b3b732",
+      "size": 9779
     },
     {
       "path": "scripts/lib.sh",
@@ -832,23 +832,23 @@
     },
     {
       "path": "scripts/repair.sh",
-      "sha256": "42d3bd02f61d2d8fb1a263edd53d47b2abbb693de3d232840e7a2df02e06cd5d",
-      "size": 3879
+      "sha256": "1cef63f8277e85ebf51ba4e139d8dc7ffbc44429f9254640e06e33eda7e384cd",
+      "size": 3881
     },
     {
       "path": "scripts/reset-password.sh",
-      "sha256": "dfe2426424f02d5822c318a47e84126e86fc66a219353b57a238f438b30748bb",
-      "size": 1656
+      "sha256": "78bd79a7013393642fb2a0d1aedb00631d5862def482d1fdfef6b8ec79ae2283",
+      "size": 1660
     },
     {
       "path": "scripts/uninstall.sh",
-      "sha256": "9b61272a4b451751fcf97c98ffc71fb04ed8a3c4d8e207092ce8d2553260e39a",
-      "size": 5361
+      "sha256": "073281f7048cf6ac4ede6f789f8908a8fb9e7d955b8f7c1d852b5dce1bdca69a",
+      "size": 5365
     },
     {
       "path": "scripts/upgrade.sh",
-      "sha256": "b288a66b5cbb0618ec39771df0cf96f8554de55ea0c09079ad2bd7c00eb34fc2",
-      "size": 7273
+      "sha256": "bd887deeb2ed763a40fe1818bbdabbcfc5743d49aeafdde1cec13ae385396464",
+      "size": 7275
     },
     {
       "path": "scripts/verify-release.sh",
@@ -863,5 +863,5 @@
   ],
   "format": 1,
   "source_date_epoch": 0,
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

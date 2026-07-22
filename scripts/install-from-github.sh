@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-readonly DEFAULT_VERSION="0.1.0"
+readonly DEFAULT_VERSION="0.1.1"
 GITHUB_REPOSITORY="${VPNGATE_GITHUB_REPOSITORY:-}"
 INSTALL_VERSION="${VPNGATE_INSTALL_VERSION:-$DEFAULT_VERSION}"
 BOOTSTRAP_DIRECTORY=""
@@ -26,6 +26,33 @@ cleanup() {
             || fail "unsafe bootstrap temporary path"
         rm -rf -- "$BOOTSTRAP_DIRECTORY"
     fi
+}
+
+prepare_bootstrap_credentials() {
+    local password=""
+    local confirmation=""
+    if [[ -z "${VPNGATE_ADMIN_PASSWORD:-}" ]]; then
+        [[ -r /dev/tty && -w /dev/tty ]] \
+            || fail "set VPNGATE_ADMIN_PASSWORD for non-interactive installation"
+        printf 'Administrator password (at least 12 characters): ' >/dev/tty
+        IFS= read -r -s password </dev/tty \
+            || fail "could not read the administrator password"
+        printf '\nConfirm administrator password: ' >/dev/tty
+        IFS= read -r -s confirmation </dev/tty \
+            || fail "could not read the password confirmation"
+        printf '\n' >/dev/tty
+        [[ "$password" == "$confirmation" ]] || fail "passwords do not match"
+        VPNGATE_ADMIN_PASSWORD="$password"
+    fi
+    [[ "${#VPNGATE_ADMIN_PASSWORD}" -ge 12 ]] \
+        || fail "administrator password must contain at least 12 characters"
+    [[ "${#VPNGATE_ADMIN_PASSWORD}" -le 1024 ]] \
+        || fail "administrator password must contain at most 1024 characters"
+    VPNGATE_ADMIN_USERNAME="${VPNGATE_ADMIN_USERNAME:-admin}"
+    VPNGATE_USE_PREBUILT_FRONTEND="${VPNGATE_USE_PREBUILT_FRONTEND:-true}"
+    export VPNGATE_ADMIN_PASSWORD VPNGATE_ADMIN_USERNAME VPNGATE_USE_PREBUILT_FRONTEND
+    password=""
+    confirmation=""
 }
 
 parse_arguments() {
@@ -77,6 +104,7 @@ download() {
 main() {
     parse_arguments "$@"
     validate_inputs
+    prepare_bootstrap_credentials
     trap cleanup EXIT
 
     local archive_name="vpngate-manager-${INSTALL_VERSION}.tar.gz"

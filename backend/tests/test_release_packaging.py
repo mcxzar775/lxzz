@@ -77,7 +77,7 @@ def test_release_archive_is_reproducible_manifested_and_secret_free(
         assert manifest_file is not None
         manifest: dict[str, Any] = json.loads(manifest_file.read())
         assert manifest["format"] == 1
-        assert manifest["version"] == "0.1.0"
+        assert manifest["version"] == "0.1.1"
         covered = {f"{prefix}/{item['path']}" for item in manifest["files"]}
         assert set(names) == covered | {f"{prefix}/RELEASE-MANIFEST.json"}
 
@@ -126,3 +126,17 @@ def test_github_bootstrap_verifies_release_before_extracting_or_installing() -> 
     assert "VPNGATE_ENABLE_REAL_NETWORK=true" not in installer
     assert "eval " not in installer
     assert "source " not in installer
+
+
+def test_github_bootstrap_collects_credentials_and_uses_prebuilt_frontend() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    installer = (project_root / "scripts/install-from-github.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "prepare_bootstrap_credentials" in installer
+    assert "Administrator password (at least 12 characters)" in installer
+    assert 'VPNGATE_ADMIN_USERNAME="${VPNGATE_ADMIN_USERNAME:-admin}"' in installer
+    assert 'VPNGATE_USE_PREBUILT_FRONTEND="${VPNGATE_USE_PREBUILT_FRONTEND:-true}"' in installer
+    assert "export VPNGATE_ADMIN_PASSWORD" in installer
+    assert 'printf \'%s\' "$VPNGATE_ADMIN_PASSWORD"' not in installer

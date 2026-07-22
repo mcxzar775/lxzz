@@ -77,7 +77,7 @@ make release-check
 
 ```bash
 make release
-bash scripts/verify-release.sh dist/vpngate-manager-0.1.0.tar.gz
+bash scripts/verify-release.sh dist/vpngate-manager-0.1.1.tar.gz
 ```
 
 发布命令生成带外部 SHA-256 文件和内置逐文件 `RELEASE-MANIFEST.json` 的规范化归档。`.env`、凭据密钥、SQLite 数据库、缓存、虚拟环境、`node_modules` 和工作目录不会进入发布包；校验器拒绝路径穿越、符号链接、特殊文件、重复成员、未列入清单的文件和摘要不匹配。

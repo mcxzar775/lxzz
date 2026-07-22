@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/release-lib.sh"
 REPAIR_STAGING=""
 
 cleanup_repair_staging() {
-    [[ -n "$REPAIR_STAGING" && -d "$REPAIR_STAGING" ]] || return
+    [[ -n "$REPAIR_STAGING" && -d "$REPAIR_STAGING" ]] || return 0
     [[ "$REPAIR_STAGING" == "${APP_DIR}/venv.repair."* ]] \
         || fail "unsafe repair staging path"
     rm -rf "$REPAIR_STAGING"

@@ -65,8 +65,8 @@ runtime_connection_ids() {
 }
 
 database_connection_ids() {
-    [[ -x "${APP_DIR}/venv/bin/python" && -d "${APP_DIR}/backend" ]] || return
-    trusted_environment_available_for_uninstall || return
+    [[ -x "${APP_DIR}/venv/bin/python" && -d "${APP_DIR}/backend" ]] || return 0
+    trusted_environment_available_for_uninstall || return 0
     (cd "$APP_DIR/backend" \
         && run_as_service_user_with_env \
             "$APP_DIR/venv/bin/python" -m app.cli list-connection-ids) 2>/dev/null || true

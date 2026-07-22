@@ -17,7 +17,7 @@ ROLLBACK_ACTIVE=false
 backup_optional_asset() {
     local source_path="$1"
     local backup_name="$2"
-    [[ -e "$source_path" || -L "$source_path" ]] || return
+    [[ -e "$source_path" || -L "$source_path" ]] || return 0
     cp -a -- "$source_path" "${UPGRADE_BACKUP}/assets/${backup_name}"
 }
 

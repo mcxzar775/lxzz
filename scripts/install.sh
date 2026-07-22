@@ -28,7 +28,7 @@ cleanup_install_staging() {
 }
 
 prepare_admin_password_file() {
-    [[ -n "${VPNGATE_ADMIN_PASSWORD:-}" ]] || return
+    [[ -n "${VPNGATE_ADMIN_PASSWORD:-}" ]] || return 0
     ADMIN_PASSWORD_FILE="${DATA_DIR}/.admin-password-$$"
     [[ ! -e "$ADMIN_PASSWORD_FILE" ]] || fail "transient password file already exists"
     (umask 077 && printf '%s' "$VPNGATE_ADMIN_PASSWORD" >"$ADMIN_PASSWORD_FILE")
