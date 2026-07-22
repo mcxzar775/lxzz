@@ -173,10 +173,11 @@ main() {
             check "credential encryption key mode is 0600" \
                 test "$(stat -c '%a' "$credential_key_file" 2>/dev/null)" = 600
         fi
-        if [[ -x "${APP_DIR}/venv/bin/alembic" && -d "${APP_DIR}/backend" ]]; then
+        if [[ -x "${APP_DIR}/venv/bin/python" && -d "${APP_DIR}/backend" ]]; then
             if (cd "${APP_DIR}/backend" \
                 && run_as_service_user_with_env \
-                    "${APP_DIR}/venv/bin/alembic" current --check-heads) >/dev/null 2>&1; then
+                    "${APP_DIR}/venv/bin/python" -I \
+                    -m alembic current --check-heads) >/dev/null 2>&1; then
                 printf '[PASS] database migration is at head\n'
             else
                 printf '[FAIL] database migration is not at head\n'

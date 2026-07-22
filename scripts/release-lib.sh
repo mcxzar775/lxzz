@@ -69,8 +69,8 @@ prepare_release_tree() {
     printf '%s\n' "$version" >"$target/VERSION"
     chmod 0644 "$target/VERSION"
     chown -R root:root "$target"
-    [[ -x "$target/venv/bin/vpngate-root-helper" ]] \
-        || fail "release root helper entry point is missing"
+    "$target/venv/bin/python" -I -c 'import app.root_helper' \
+        || fail "release root helper module is missing"
 }
 
 install_release_helper() {
@@ -81,7 +81,7 @@ install_release_helper() {
         || fail "bundled sudoers policy is invalid"
     install -d -m 0755 /usr/local/libexec /etc/sudoers.d
     install -m 0755 -o root -g root \
-        "${release_dir}/venv/bin/vpngate-root-helper" "$ROOT_HELPER_PATH"
+        "${PROJECT_ROOT}/deploy/bin/vpngate-manager-helper.sh" "$ROOT_HELPER_PATH"
     install -m 0440 -o root -g root \
         "${PROJECT_ROOT}/deploy/sudoers/vpngate-manager" "$SUDOERS_FILE"
     visudo -cf "$SUDOERS_FILE" >/dev/null \
@@ -108,7 +108,8 @@ install_service_assets() {
 
 run_database_migrations() {
     (cd "$APP_DIR/backend" \
-        && run_as_service_user_with_env "$APP_DIR/venv/bin/alembic" upgrade head)
+        && run_as_service_user_with_env \
+            "$APP_DIR/venv/bin/python" -I -m alembic upgrade head)
 }
 
 verify_installed_version() {

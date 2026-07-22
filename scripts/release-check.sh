@@ -46,11 +46,11 @@ check_static_security_rules() {
         fail "NOPASSWD: ALL is forbidden"
     fi
     local script
-    for script in "${PROJECT_ROOT}"/scripts/*.sh; do
+    for script in "${PROJECT_ROOT}"/scripts/*.sh "${PROJECT_ROOT}"/deploy/bin/*.sh; do
         bash -n "$script"
     done
     if command -v shellcheck >/dev/null 2>&1; then
-        shellcheck "${PROJECT_ROOT}"/scripts/*.sh
+        shellcheck "${PROJECT_ROOT}"/scripts/*.sh "${PROJECT_ROOT}"/deploy/bin/*.sh
     else
         log "shellcheck not installed; skipped"
     fi

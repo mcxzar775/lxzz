@@ -12,7 +12,7 @@ EnvironmentFile=/etc/vpngate-manager/vpngate.env
 RuntimeDirectory=vpngate-manager
 RuntimeDirectoryMode=0750
 RuntimeDirectoryPreserve=yes
-ExecStart=/opt/vpngate-manager/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1
+ExecStart=/opt/vpngate-manager/venv/bin/python -I -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1
 Restart=on-failure
 RestartSec=3
 # Restricted sudo is required only for the fixed, root-owned network helper.

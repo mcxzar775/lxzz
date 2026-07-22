@@ -20,8 +20,8 @@ cleanup_repair_staging() {
 
 repair_virtual_environment() {
     if [[ -x "${APP_DIR}/venv/bin/python" ]] \
-        && "${APP_DIR}/venv/bin/python" -c 'import app' >/dev/null 2>&1 \
-        && [[ -x "${APP_DIR}/venv/bin/vpngate-root-helper" ]]; then
+        && "${APP_DIR}/venv/bin/python" -I \
+            -c 'import app, alembic, uvicorn' >/dev/null 2>&1; then
         return
     fi
     select_python
@@ -87,7 +87,8 @@ main() {
     (cd "$APP_DIR/backend" \
         && run_as_service_user_with_env "$APP_DIR/venv/bin/python" -m app.cli init-secrets)
     (cd "$APP_DIR/backend" \
-        && run_as_service_user_with_env "$APP_DIR/venv/bin/alembic" current --check-heads)
+        && run_as_service_user_with_env \
+            "$APP_DIR/venv/bin/python" -I -m alembic current --check-heads)
     "$ROOT_HELPER_PATH" self-test >/dev/null
     systemctl enable --now vpngate-manager.service
     systemctl enable nginx.service

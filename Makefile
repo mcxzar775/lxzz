@@ -28,8 +28,8 @@ frontend-test: frontend-sync
 	cd frontend && $(PNPM) run typecheck
 
 shell-check:
-	@for script in scripts/*.sh; do bash -n "$$script"; done
-	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh; else echo "shellcheck not installed; skipped"; fi
+	@for script in scripts/*.sh deploy/bin/*.sh; do bash -n "$$script"; done
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh deploy/bin/*.sh; else echo "shellcheck not installed; skipped"; fi
 
 build: backend-build frontend-build
 
