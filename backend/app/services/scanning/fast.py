@@ -60,6 +60,13 @@ class SocketFastScanTransport:
     def _resolve_host(self, target: NodeScanTarget) -> tuple[bool, list[str]]:
         if target.host_name is None:
             return False, []
+        # VPNGate's HostName column is commonly an unqualified server label such
+        # as ``public-vpn-50`` rather than a DNS name.  The feed's public IP is
+        # already validated during parsing, so short labels must not prevent the
+        # transport probe from using that address.  Keep the DNS/IP consistency
+        # check for fully-qualified names supplied by other feed variants.
+        if "." not in target.host_name.rstrip("."):
+            return False, []
         socket_type = socket.SOCK_STREAM if target.protocol == "tcp" else socket.SOCK_DGRAM
         records = socket.getaddrinfo(
             target.host_name,
@@ -146,6 +153,8 @@ class SocketFastScanTransport:
         }
         if resolved_addresses:
             details["resolved_addresses"] = resolved_addresses
+        elif target.host_name is not None:
+            details["dns_skip_reason"] = "unqualified_host_name"
         ptr = self._reverse_ptr(target.ip_address)
         if ptr is not None:
             details["ptr"] = ptr

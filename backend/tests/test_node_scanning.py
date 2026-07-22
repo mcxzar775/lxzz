@@ -68,6 +68,44 @@ def test_real_tcp_scan_checks_dns_transport_and_ptr(
     assert closed == [True]
 
 
+def test_real_scan_skips_dns_for_vpngate_short_hostname(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _target()
+    target = NodeScanTarget(
+        node_id=target.node_id,
+        host_name="public-vpn-50",
+        ip_address=target.ip_address,
+        protocol=target.protocol,
+        remote_port=target.remote_port,
+        sanitized_config=target.sanitized_config,
+        advertised_ping_ms=target.advertised_ping_ms,
+    )
+
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("an unqualified VPNGate label must not be resolved")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: type(
+            "FakeConnection", (), {"close": lambda self: None}
+        )(),
+    )
+    monkeypatch.setattr(socket, "gethostbyaddr", lambda _: ("dns.google", [], []))
+
+    outcome = asyncio.run(SocketFastScanTransport().scan(target))
+
+    assert outcome.status is ScanStatus.SUCCEEDED
+    assert outcome.safe_details["dns_checked"] is False
+    assert outcome.safe_details["dns_skip_reason"] == "unqualified_host_name"
+    assert outcome.safe_details["node_reachability_confirmed"] is True
+
+
 def test_dns_mismatch_fails_before_transport_probe(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

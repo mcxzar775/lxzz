@@ -95,6 +95,17 @@ def test_maintenance_scripts_are_present_and_serialized() -> None:
             assert "acquire_maintenance_lock" in text
 
 
+def test_installer_reloads_preexisting_nginx_process() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    installer = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+
+    assert "systemctl enable nginx.service" in installer
+    assert "systemctl reload-or-restart nginx.service" in installer
+    assert installer.index("systemctl enable nginx.service") < installer.index(
+        "systemctl reload-or-restart nginx.service"
+    )
+
+
 def test_environment_file_is_never_sourced_as_root() -> None:
     project_root = Path(__file__).resolve().parents[2]
     scripts = "\n".join(

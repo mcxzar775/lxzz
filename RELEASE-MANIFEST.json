@@ -12,8 +12,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "f3421f98b1ed874f293ca8fa31e1f96938e1af7c497b0e6dfe9adcbe2a29116c",
-      "size": 2177
+      "sha256": "9708da351fb72045a74d54514d99344f15c841d490c7331c5d674c672a7e3ff3",
+      "size": 2538
     },
     {
       "path": "Makefile",
@@ -22,7 +22,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "f54a67606516a918e4cbcabc485e87c2dede2c845a24febed90a7b298a64d393",
+      "sha256": "e26b11060d6bd2316eedb942dde8e2fe1d5db544e4822e9a897a9a11fcbb75c0",
       "size": 16210
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "path": "VERSION",
-      "sha256": "2d2454ef0edeb462a6ce8b25d387aaa74df08093d5cea0428a10ce55510c6326",
+      "sha256": "8a3dad16d348c163566a456fcf650d85d7aeeda5e53d01ee1fa8dc15212915a7",
       "size": 6
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "path": "backend/app/__init__.py",
-      "sha256": "7d00fc36d244661f03504c702bd3891e9eea20e366e3c71d356cfdf8ff05c947",
+      "sha256": "7a09d55a94171af232f9368f8b6cbcc9d47804a2545dc13f4c35c7fff64269f6",
       "size": 65
     },
     {
@@ -377,8 +377,8 @@
     },
     {
       "path": "backend/app/services/scanning/fast.py",
-      "sha256": "a4131fd7d4a5c39c5bd838f2d2cb74a32957acff7170c6f0190398ef31aa9ea9",
-      "size": 6657
+      "sha256": "4918afae5278fc25c8a774b9c4626f486b2e214e5d4669ffd4e7a9645156f86f",
+      "size": 7243
     },
     {
       "path": "backend/app/services/scanning/full.py",
@@ -457,7 +457,7 @@
     },
     {
       "path": "backend/pyproject.toml",
-      "sha256": "68e7a7bd7ba3eb951a2b517d20e10436d3633c093481148441795c65320b44b1",
+      "sha256": "0fde970cd27fececa97c5b5cf909df3b2b035508c77b88b5dedb15076a157ed9",
       "size": 1004
     },
     {
@@ -507,8 +507,8 @@
     },
     {
       "path": "backend/tests/test_install_security.py",
-      "sha256": "b7a708318531886a25a86f6d98061bf725b1832e94ea66d9985c0cddc664d5a4",
-      "size": 6915
+      "sha256": "26fdfdb4a95718f0ce4c6f1edb9fe5b29cc7642892eca173b1c8eba7a71f614a",
+      "size": 7382
     },
     {
       "path": "backend/tests/test_ip_intelligence.py",
@@ -547,8 +547,8 @@
     },
     {
       "path": "backend/tests/test_node_scanning.py",
-      "sha256": "749d5df21db66604a83f743f854dac75a5631323b74b1b34091f005285f22f31",
-      "size": 7884
+      "sha256": "45b9e33384a2e939e7357030d8d9803d3684f910973d11d0cede1ad86051f41b",
+      "size": 9149
     },
     {
       "path": "backend/tests/test_nodes_api.py",
@@ -567,7 +567,7 @@
     },
     {
       "path": "backend/tests/test_release_packaging.py",
-      "sha256": "e08c55bf2ce598a14839d92a322e402fff91c9aea7c0cda484055567f43ed4bb",
+      "sha256": "f6bdb5edcd3f6225d9566e19e13049cb7ca808391bdd2879ee38a623b20e53bd",
       "size": 5681
     },
     {
@@ -627,7 +627,7 @@
     },
     {
       "path": "backend/uv.lock",
-      "sha256": "706c906962b8bc74f3b07e14d3074a021888dfb511f6cccfea71b0d9004b1c8b",
+      "sha256": "db7f01d050f96055c570d1d9ff2e46976de5f16be8b7fab71515daf75eb4bc76",
       "size": 385955
     },
     {
@@ -662,7 +662,7 @@
     },
     {
       "path": "docs/GITHUB.md",
-      "sha256": "e3c5af8f18dfc4ac0b60f978eb15bce346d2d3daaac6a934b71d1f771e24b337",
+      "sha256": "f378aa0b00b2a76059bca723ca316f41ba295aa1001a2205b05e1fbe6f398392",
       "size": 1762
     },
     {
@@ -692,7 +692,7 @@
     },
     {
       "path": "frontend/package.json",
-      "sha256": "9dd7b7e1976fdbe6290afb993d68a96d47f2f1b236253055abd061c9b185ae9a",
+      "sha256": "9836aade33827d6347fdbff4197a04a25800c6ac6695f508f5f6666c7a620983",
       "size": 551
     },
     {
@@ -812,13 +812,13 @@
     },
     {
       "path": "scripts/install-from-github.sh",
-      "sha256": "3b09e91d1ac2c2be05f57ca2e56a91cc476b204c6537918ca465edd0f337e8eb",
+      "sha256": "36dfbb6c77d2b7e2b1c96457cc463b3748d3e324df665209bf3dd5fa6db22495",
       "size": 4979
     },
     {
       "path": "scripts/install.sh",
-      "sha256": "9c36f8f17f1bb9f775c0bf3787ea443080d197588782858f0c589978a6b3b732",
-      "size": 9779
+      "sha256": "c0f0e685c03ae2b3e32db9df93063b6128651efa245f07a05694c857c4cb3051",
+      "size": 9819
     },
     {
       "path": "scripts/lib.sh",
@@ -868,5 +868,5 @@
   ],
   "format": 1,
   "source_date_epoch": 0,
-  "version": "0.1.3"
+  "version": "0.1.4"
 }

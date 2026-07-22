@@ -234,7 +234,8 @@ main() {
 
     "$ROOT_HELPER_PATH" self-test >/dev/null
     systemctl enable --now vpngate-manager.service
-    systemctl enable --now nginx.service
+    systemctl enable nginx.service
+    systemctl reload-or-restart nginx.service
     wait_for_health 30
     verify_installed_version "$version"
     log "installation complete; open https://<server-address>/"
