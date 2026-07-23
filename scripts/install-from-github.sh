@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-readonly DEFAULT_VERSION="0.2.0"
+readonly DEFAULT_VERSION="0.2.1"
 GITHUB_REPOSITORY="${VPNGATE_GITHUB_REPOSITORY:-}"
 INSTALL_VERSION="${VPNGATE_INSTALL_VERSION:-$DEFAULT_VERSION}"
 BOOTSTRAP_ACTION="install"
@@ -50,8 +50,7 @@ prepare_bootstrap_credentials() {
     [[ "${#VPNGATE_ADMIN_PASSWORD}" -le 1024 ]] \
         || fail "administrator password must contain at most 1024 characters"
     VPNGATE_ADMIN_USERNAME="${VPNGATE_ADMIN_USERNAME:-admin}"
-    VPNGATE_USE_PREBUILT_FRONTEND="${VPNGATE_USE_PREBUILT_FRONTEND:-true}"
-    export VPNGATE_ADMIN_PASSWORD VPNGATE_ADMIN_USERNAME VPNGATE_USE_PREBUILT_FRONTEND
+    export VPNGATE_ADMIN_PASSWORD VPNGATE_ADMIN_USERNAME
     password=""
     confirmation=""
 }
@@ -109,6 +108,8 @@ download() {
 main() {
     parse_arguments "$@"
     validate_inputs
+    VPNGATE_USE_PREBUILT_FRONTEND="${VPNGATE_USE_PREBUILT_FRONTEND:-true}"
+    export VPNGATE_USE_PREBUILT_FRONTEND
     if [[ "$BOOTSTRAP_ACTION" == "install" ]]; then
         prepare_bootstrap_credentials
     fi

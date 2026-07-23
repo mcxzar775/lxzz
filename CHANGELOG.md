@@ -2,6 +2,13 @@
 
 所有重要变更记录在此文件中，版本遵循语义版本。
 
+## 0.2.1 - 2026-07-23
+
+### Fixed
+
+- GitHub `--upgrade` 引导现在和全新安装一致，默认使用已通过发布清单验证的内置 Vue 前端，避免 Debian 12 的 Node.js 18 误触发 pnpm 11 构建失败。
+- 仍可显式设置 `VPNGATE_USE_PREBUILT_FRONTEND=false`，在满足 Node.js 与 pnpm 要求的环境中强制重新构建前端。
+
 ## 0.2.0 - 2026-07-23
 
 ### Added

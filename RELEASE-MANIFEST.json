@@ -12,8 +12,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "8f49cef2f75f9a9fb744dcf7e49a2236f28f2d0ac0a3695237f45f613b472239",
-      "size": 3671
+      "sha256": "02c89bab62a0430705b621507b4c797e42c361f0d10c1a78f36ffb491230af93",
+      "size": 4025
     },
     {
       "path": "Makefile",
@@ -22,7 +22,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "9fc273035355089e1a3d9529662ca33cb0fbca9d78476d0fde730a6b8aa503f3",
+      "sha256": "69b6b33a6e27e7952eae5a514d0dae8d24b58f57f5bdce1dd0319284d93962f6",
       "size": 16606
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "path": "VERSION",
-      "sha256": "1f930dd1f133c1f97a94fe3acb8db34372cf4c01ffdb2b3ff4ca72f9494121e9",
+      "sha256": "71015c979ccb0fc8a0be7ca0ae83046ab045cdc2c8faa09fb2f0f7e440f9b4a6",
       "size": 6
     },
     {
@@ -72,7 +72,7 @@
     },
     {
       "path": "backend/app/__init__.py",
-      "sha256": "c432668bc5c617c8b13577a6bff77a4d7f8cc97abbcd22f24678523b7ec48fb9",
+      "sha256": "f53d76c61e62639f2325b73f8d3b08987e536e7d12ea9863f7f900137d87c480",
       "size": 65
     },
     {
@@ -472,7 +472,7 @@
     },
     {
       "path": "backend/pyproject.toml",
-      "sha256": "390e2f8b02e9913ea486e198f5d3c29553490172b307eb8cf6d058414929bb2d",
+      "sha256": "4523003d5a18be0a3aa9553a45dd5b679a6938beee2920d3e19ac2f8a7a439e1",
       "size": 1004
     },
     {
@@ -582,8 +582,8 @@
     },
     {
       "path": "backend/tests/test_release_packaging.py",
-      "sha256": "840e6c77ad754e7bbf011cf2c5bcebfaf86066a873654dd93cb2b7c9009ad39d",
-      "size": 5803
+      "sha256": "e05a721b9212608db76191dd7f77d89d25e9a6c62356442c2ff811dfc3e987a6",
+      "size": 6044
     },
     {
       "path": "backend/tests/test_root_helper.py",
@@ -642,7 +642,7 @@
     },
     {
       "path": "backend/uv.lock",
-      "sha256": "aa25ce766a4a7d51bb3ff7f91ad1cdb418440725d62ede11423dedaabe4e4438",
+      "sha256": "97554ff8a4a8996ffccaeccee650606355570b10e74aff329eaf33fe65ee628f",
       "size": 385955
     },
     {
@@ -677,7 +677,7 @@
     },
     {
       "path": "docs/GITHUB.md",
-      "sha256": "ff3420f9909a3cb066c6d05382ca41785b8c489424afe6797a23a625160bdaa4",
+      "sha256": "c23264a39871c1d64c0cfbcd9831dcdafdec4c61b89e7951281f167f7e78b24a",
       "size": 2383
     },
     {
@@ -712,7 +712,7 @@
     },
     {
       "path": "frontend/package.json",
-      "sha256": "081bcfe4da2ffd2e7b9981b30de3971d4ccf36243dc780756ddaebea1bbaf601",
+      "sha256": "545e7c79bf710154bafbc4fd79f511299c4ed1a12b80d1d215802eba15cbd284",
       "size": 551
     },
     {
@@ -832,8 +832,8 @@
     },
     {
       "path": "scripts/install-from-github.sh",
-      "sha256": "9760f134d1b6203a3f14702ae52cc3d9d3fe8ff3c4af688bdc4d74371264f646",
-      "size": 5198
+      "sha256": "feb85699c108e6d5ddef18cbd8410be683dfd9c7bbfcb47d77deb0c03ef78098",
+      "size": 5209
     },
     {
       "path": "scripts/install.sh",
@@ -888,5 +888,5 @@
   ],
   "format": 1,
   "source_date_epoch": 0,
-  "version": "0.2.0"
+  "version": "0.2.1"
 }

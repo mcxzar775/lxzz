@@ -20,15 +20,15 @@ git push -u origin main
 为提交创建并推送与应用版本一致的标签：
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
-在 GitHub 的 Releases 页面创建 `v0.2.0` 发布，并上传两个文件：
+在 GitHub 的 Releases 页面创建 `v0.2.1` 发布，并上传两个文件：
 
 ```text
-vpngate-manager-0.2.0.tar.gz
-vpngate-manager-0.2.0.tar.gz.sha256
+vpngate-manager-0.2.1.tar.gz
+vpngate-manager-0.2.1.tar.gz.sha256
 ```
 
 发布归档和标签必须使用相同版本。不要重新压缩或修改归档，否则 SHA-256 和内置清单将失效。
@@ -38,7 +38,7 @@ vpngate-manager-0.2.0.tar.gz.sha256
 将下面命令中的 `OWNER/REPOSITORY` 替换为实际 GitHub 仓库：
 
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/OWNER/REPOSITORY/v0.2.0/scripts/install-from-github.sh | sudo bash -s -- --repo OWNER/REPOSITORY --version 0.2.0
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/OWNER/REPOSITORY/v0.2.1/scripts/install-from-github.sh | sudo bash -s -- --repo OWNER/REPOSITORY --version 0.2.1
 ```
 
 引导脚本从对应 GitHub Release 下载源码归档和 SHA-256 文件，再从相同版本标签取得归档校验器。只有外部摘要、内置逐文件清单、路径和成员类型全部通过后，才会调用项目安装器。
@@ -47,10 +47,10 @@ curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/OWNER/RE
 
 ## 一键升级现有安装
 
-先将 `v0.2.0` 标签和两个 Release 资产上传完成，再在已安装旧版本的服务器执行：
+先将 `v0.2.1` 标签和两个 Release 资产上传完成，再在已安装旧版本的服务器执行：
 
 ```bash
-curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/OWNER/REPOSITORY/v0.2.0/scripts/install-from-github.sh | sudo bash -s -- --repo OWNER/REPOSITORY --version 0.2.0 --upgrade
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/OWNER/REPOSITORY/v0.2.1/scripts/install-from-github.sh | sudo bash -s -- --repo OWNER/REPOSITORY --version 0.2.1 --upgrade
 ```
 
 升级模式复用相同的归档摘要和逐文件清单校验，但调用原子 `upgrade.sh` 而不是安装器。它不会要求或重置管理员密码；数据库迁移、应用切换、健康检查或版本验证失败时会恢复旧应用和受管 SQLite 数据库。
